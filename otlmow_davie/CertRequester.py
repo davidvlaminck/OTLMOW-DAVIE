@@ -6,7 +6,7 @@ from requests import Response
 
 
 class CertRequester(requests.Session):
-    def __init__(self, cert_path: Path = None, key_path: Path = None, first_part_url: str = ''):
+    def __init__(self, cert_path: Path, key_path: Path, first_part_url: str = ''):
         super().__init__()
         self.cert_path = cert_path
         self.key_path = key_path

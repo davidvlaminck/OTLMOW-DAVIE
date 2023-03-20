@@ -25,23 +25,23 @@ class JWTRequester(requests.Session):
         self.requested_at: datetime.datetime = self.expires
         super().__init__()
 
-    def get(self, url='', **kwargs) -> Response:
+    def get(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
         return super().get(url=self.first_part_url + url, **kwargs)
 
-    def post(self, url='', **kwargs) -> Response:
+    def post(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
         return super().post(url=self.first_part_url + url, **kwargs)
 
-    def put(self, url='', **kwargs) -> Response:
+    def put(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
         return super().put(url=self.first_part_url + url, **kwargs)
 
-    def patch(self, url='', **kwargs) -> Response:
+    def patch(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
         return super().patch(url=self.first_part_url + url, **kwargs)
 
-    def delete(self, url='', **kwargs) -> Response:
+    def delete(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
         return super().delete(url=self.first_part_url + url, **kwargs)
 
