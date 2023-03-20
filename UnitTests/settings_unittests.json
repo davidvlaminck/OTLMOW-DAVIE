@@ -2,8 +2,8 @@
     "authentication" : {
         "cert": {
             "prd": {
-                "cert_path" : "prd.awv.vlaanderen.be.crt",
-                "key_path" : "prd.awv.vlaanderen.be.key"
+                "cert_path" : "fake_crt_prd.crt",
+                "key_path" : "fake_key_prd.key"
             }
         },
         "JWT": {
