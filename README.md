@@ -1,6 +1,6 @@
 # OTLMOW-DAVIE
 [![PyPI](https://img.shields.io/pypi/v/otlmow-davie?label=latest%20release)](https://pypi.org/project/otlmow-davie/)
-[![otlmow-davie-downloads](https://img.shields.io/pypi/dm/otlmow-davie)](https://pypi.org/project/otlmow-model/)
+[![otlmow-davie-downloads](https://img.shields.io/pypi/dm/otlmow-davie)](https://pypi.org/project/otlmow-davie/)
 [![Unittests](https://github.com/davidvlaminck/OTLMOW-DAVIE/actions/workflows/unittest.yml/badge.svg)](https://github.com/davidvlaminck/OTLMOW-DAVIE/actions/workflows/unittest.yml)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/otlmow-davie)
 [![GitHub issues](https://img.shields.io/github/issues/davidvlaminck/OTLMOW-DAVIE)](https://github.com/davidvlaminck/OTLMOW-DAVIE/issues)
