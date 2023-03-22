@@ -1,11 +1,10 @@
 from abc import ABC
-from enum import Enum
 from typing import Optional
 
 from pydantic import Field
 from pydantic import BaseModel as PydanticBaseModel
 
-from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus
+from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus, MethodEnum
 
 
 class BaseModel(PydanticBaseModel):
@@ -19,15 +18,6 @@ class Aanlevering(BaseModel):
     nummer: str
     status: AanleveringStatus
     substatus: Optional[AanleveringSubstatus]
-
-
-class MethodEnum(str, Enum):
-    """De verschillende HTTP method verbs die worden ondersteund in een HATEOAS link"""
-    GET = 'GET'
-    POST = 'POST'
-    PUT = 'PUT'
-    PATCH = 'PATCH'
-    DELETE = 'DELETE'
 
 
 class HateoasLink(BaseModel):

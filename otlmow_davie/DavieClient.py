@@ -5,7 +5,7 @@ from typing import Optional
 
 from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker
 from otlmow_davie.DavieRestClient import DavieRestClient
-from otlmow_davie.Enums import Environment, AuthenticationType, AanleveringStatus
+from otlmow_davie.Enums import Environment, AuthenticationType, AanleveringStatus, AanleveringSubstatus
 from otlmow_davie.RequestHandler import RequestHandler
 from otlmow_davie.RequesterFactory import RequesterFactory
 from otlmow_davie.SettingsManager import SettingsManager
@@ -48,15 +48,15 @@ class DavieClient:
         self._track_aanlevering(aanlevering)
         return aanlevering
 
-    def get_aanlevering(self, aanlevering_uuid: str) -> Aanlevering:
-        return self.rest_client.get_aanlevering(aanlevering_uuid)
-
     def track_aanlevering_by_uuid(self, aanlevering_uuid: str):
         aanlevering = self.get_aanlevering(aanlevering_uuid)
         self._track_aanlevering(aanlevering)
 
+    def get_aanlevering(self, aanlevering_uuid: str) -> Aanlevering:
+        return self.rest_client.get_aanlevering(aanlevering_uuid)
+
     def _save_to_shelve(self, aanlevering_id: Optional[str], status: Optional[AanleveringStatus] = None,
-                        nummer: Optional[str] = None, substatus: Optional[AanleveringStatus] = None) -> None:
+                        nummer: Optional[str] = None, substatus: Optional[AanleveringSubstatus] = None) -> None:
         with shelve.open(str(self.shelve_path), writeback=True) as db:
             if aanlevering_id not in db.keys():
                 db[aanlevering_id] = {}

@@ -30,3 +30,12 @@ class AanleveringSubstatus(str, Enum):
     GOEDGEKEURD = 'GOEDGEKEURD'
     AFGEKEURD = 'AFGEKEURD'
     OPGESCHORT = 'OPGESCHORT'
+
+
+class MethodEnum(str, Enum):
+    """De verschillende HTTP method verbs die worden ondersteund in een HATEOAS link"""
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    PATCH = 'PATCH'
+    DELETE = 'DELETE'
