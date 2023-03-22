@@ -1,30 +1,32 @@
-import enum
+from enum import Enum
 
 
-class Environment(enum.Enum):
+class Environment(Enum):
     prd = 1
     tei = 2
     dev = 3
 
 
-class AuthenticationType(enum.Enum):
+class AuthenticationType(Enum):
     JWT = 1
     cert = 2
 
 
-class AanleveringStatus(enum.Enum):
-    GEANNULEERD = 1
-    VERVALLEN = 2
-    DATA_AANGELEVERD = 3
-    DATA_AANGEVRAAGD = 4
-    IN_OPMAAK = 5
+class AanleveringStatus(str, Enum):
+    """De status van de aanlevering. De status is altijd aanwezig."""
+    GEANNULEERD = 'GEANNULEERD'
+    VERVALLEN = 'VERVALLEN'
+    DATA_AANGELEVERD = 'DATA_AANGELEVERD'
+    DATA_AANGEVRAAGD = 'DATA_AANGEVRAAGD'
+    IN_OPMAAK = 'IN_OPMAAK'
 
 
-class AanleveringSubstatus(enum.Enum):
-    LOPEND = 1
-    GEFAALD = 2
-    BESCHIKBAAR = 3
-    AANGEBODEN = 4
-    GOEDGEKEURD = 5
-    AFGEKEURD = 6
-    OPGESCHORT = 7
+class AanleveringSubstatus(str, Enum):
+    """De substatus van de aanlevering. De substatus is optioneel."""
+    LOPEND = 'LOPEND'
+    GEFAALD = 'GEFAALD'
+    BESCHIKBAAR = 'BESCHIKBAAR'
+    AANGEBODEN = 'AANGEBODEN'
+    GOEDGEKEURD = 'GOEDGEKEURD'
+    AFGEKEURD = 'AFGEKEURD'
+    OPGESCHORT = 'OPGESCHORT'
