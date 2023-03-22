@@ -30,9 +30,11 @@ if __name__ == '__main__':
         print(davie_client.get_aanlevering(aanlevering_uuid=uuid))
         time.sleep(1)
 
-    davie_client.create_aanlevering_employee(
-        niveau='', referentie='b2b integratie test 1', verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629'
-    )
+    aanlevering = davie_client.create_aanlevering_employee(
+        niveau='', referentie='b2b integratie test 1', verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
+    davie_client.upload_file(id=aanlevering.id, file=Path('type_template_2_buizen.json'))
+    davie_client.finalize(id=aanlevering.id)
+
 
     # print(davie_client.get_aanlevering('88f2bee0-8c71-469b-9393-33614ddd9e6a'))
 
