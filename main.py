@@ -14,26 +14,11 @@ if __name__ == '__main__':
 
     davie_client._show_shelve()
 
-    uuid = '73de57c1-d253-40f0-9ca1-41f8f46d3be1'
-
-    davie_client.track_aanlevering_by_uuid(uuid)
-    davie_client._show_shelve()
-
-    davie_client.rest_client.upload_file(id=uuid,
-                                         file=Path('type_template_2_buizen.json'))
-
-    davie_client.track_aanlevering_by_uuid(uuid)
-    davie_client._show_shelve()
-
-    davie_client.rest_client.finalize(id=uuid)
-    while True:
-        print(davie_client.get_aanlevering(aanlevering_uuid=uuid))
-        time.sleep(1)
 
     aanlevering = davie_client.create_aanlevering_employee(
-        niveau='', referentie='b2b integratie test 1', verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
-    davie_client.upload_file(id=aanlevering.id, file=Path('type_template_2_buizen.json'))
-    davie_client.finalize(id=aanlevering.id)
+        niveau='LOG-1', referentie='b2b integratie test 2', verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
+    davie_client.upload_file(id=aanlevering.id, file_path=Path('type_template_2_buizen.json'))
+    davie_client.finalize_and_wait(id=aanlevering.id)
 
 
     # print(davie_client.get_aanlevering('88f2bee0-8c71-469b-9393-33614ddd9e6a'))

@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import requests
 
@@ -9,7 +9,8 @@ from otlmow_davie.JWTRequester import JWTRequester
 
 class RequesterFactory:
     @staticmethod
-    def create_requester(settings: Dict, auth_type: AuthenticationType, environment: Environment) -> requests.Session:
+    def create_requester(settings: Dict, auth_type: AuthenticationType, environment: Environment
+                         ) -> Union[CertRequester, JWTRequester]:
         auth_info = settings['authentication'][auth_type.name][environment.name]
 
         first_part_url = ''

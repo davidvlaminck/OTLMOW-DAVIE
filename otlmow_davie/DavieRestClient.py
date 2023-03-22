@@ -11,10 +11,13 @@ class DavieRestClient:
         self.request_handler.requester.first_part_url += 'davie-core/public-api/'
         self.pagingcursor = ''
 
-    def get_aanlevering(self, aanlevering_uuid: str) -> Aanlevering:
+    def get_aanlevering(self, id: str) -> Aanlevering:
         response = self.request_handler.perform_get_request(
-            url=f'aanleveringen/{aanlevering_uuid}')
-        if response.status_code != 200:
+            url=f'aanleveringen/{id}')
+        if response.status_code == 404:
+            logging.debug(response)
+            raise ValueError(f'Could not find aanlevering {id}.')
+        elif response.status_code != 200:
             logging.debug(response)
             raise ProcessLookupError(response.content.decode("utf-8"))
         return AanleveringResultaat.parse_raw(response.text).aanlevering
@@ -29,28 +32,34 @@ class DavieRestClient:
             raise ProcessLookupError(response.content.decode("utf-8"))
         resultaat = AanleveringResultaat.parse_raw(response.text)
         logging.debug(f"aanlevering succesvol aangemaakt, id is {resultaat.aanlevering.id}")
-        return resultaat
+        return resultaat.aanlevering
 
-    def upload_file(self, id: str, file: Path) -> AanleveringBestandResultaat:
-        with open(file, "rb") as data:
+    def upload_file(self, id: str, file_path: Path) -> AanleveringBestandResultaat:
+        with open(file_path, "rb") as data:
             response = self.request_handler.perform_post_request(
                 url=f'aanleveringen/{id}/bestanden',
-                params={"bestandsnaam": file.name},
+                params={"bestandsnaam": file_path.name},
                 data=data)
-            if response.status_code != 200:
+            if response.status_code == 404:
+                logging.debug(response)
+                raise ValueError(f'Could not find aanlevering {id}.')
+            elif response.status_code != 200:
                 logging.debug(response)
                 raise ProcessLookupError(response.content.decode("utf-8"))
             resultaat = AanleveringBestandResultaat.parse_raw(response.text)
             print(resultaat.json())
-            logging.debug(f"Opladen bestand voor aanlevering")
+            logging.debug(f"Uploaded file {file_path} to aanlevering {id}")
             return resultaat
 
     def finalize(self, id: str) -> None:
         response = self.request_handler.perform_post_request(
             url=f'aanleveringen/{id}/bestanden/finaliseer')
-        if response.status_code != 204:
+        if response.status_code == 404:
+            logging.debug(response)
+            raise ValueError(f'Could not find aanlevering {id}.')
+        elif response.status_code != 204:
             logging.debug(response)
             raise ProcessLookupError(response.content.decode("utf-8"))
-        logging.debug('finalisering gelukt')
+        logging.debug('finalize succeeded')
 
 
