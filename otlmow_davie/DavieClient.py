@@ -1,5 +1,3 @@
-import dbm.ndbm
-import os
 import shelve
 import time
 from pathlib import Path
@@ -25,6 +23,7 @@ class DavieClient:
         self.rest_client = DavieRestClient(request_handler=request_handler)
         if not Path.is_file(shelve_path):
             try:
+                import dbm.ndbm
                 with dbm.ndbm.open(str(shelve_path), 'c'):
                     pass
             except ModuleNotFoundError:
