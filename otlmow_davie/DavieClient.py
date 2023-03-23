@@ -72,11 +72,11 @@ class DavieClient:
                 db[id]['status'] = status
             if substatus is not None:
                 db[id]['substatus'] = substatus
+            self.db = db
 
     def _show_shelve(self) -> None:
-        with shelve.open(str(self.shelve_path)) as db:
-            for key in db.keys():
-                print(f'{key}: {db[key]}')
+        for key in self.db.keys():
+            print(f'{key}: {self.db[key]}')
 
     def _track_aanlevering(self, aanlevering: Aanlevering):
         self._save_to_shelve(id=aanlevering.id, nummer=aanlevering.nummer,
@@ -89,20 +89,20 @@ class DavieClient:
 
     def finalize_and_wait(self, id: str, interval: int = 10) -> bool:
         self.track_aanlevering_by_id(id)
-        with shelve.open(str(self.shelve_path), writeback=True) as db:
-            if db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and db[id]['substatus'] == AanleveringSubstatus.AANGEBODEN:
-                return True
-            if db[id]['status'] != AanleveringStatus.DATA_AANGELEVERD and db[id]['status'] != AanleveringStatus.IN_OPMAAK:
-                raise RuntimeError(f"{id} has status {db[id]['status']} instead of IN_OPMAAK / DATA_AANGELEVERD")
+        if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id]['substatus'] == AanleveringSubstatus.AANGEBODEN:
+            return True
+        if self.db[id]['status'] != AanleveringStatus.DATA_AANGELEVERD and self.db[id]['status'] != AanleveringStatus.IN_OPMAAK:
+            raise RuntimeError(f"{id} has status {self.db[id]['status']} instead of IN_OPMAAK / DATA_AANGELEVERD")
 
-            if AanleveringStatus.IN_OPMAAK:
-                self.rest_client.finalize(id=id)
+        if AanleveringStatus.IN_OPMAAK:
+            self.rest_client.finalize(id=id)
 
-            while True:
-                self.track_aanlevering_by_id(id)
-                if db[id]['substatus'] != AanleveringSubstatus.LOPEND:
-                    break
-                time.sleep(interval)
+        while True:
+            self.track_aanlevering_by_id(id)
+            self._show_shelve()
+            if 'substatus' in self.db[id] and self.db[id]['substatus'] != AanleveringSubstatus.LOPEND:
+                break
+            time.sleep(interval)
 
         return True
 
