@@ -72,7 +72,7 @@ class DavieClient:
                 db[id]['status'] = status
             if substatus is not None:
                 db[id]['substatus'] = substatus
-            self.db = db
+            self.db = dict(db)
 
     def _show_shelve(self) -> None:
         for key in self.db.keys():

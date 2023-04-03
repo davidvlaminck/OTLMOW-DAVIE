@@ -9,15 +9,15 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
     settings_path = Path('settings_sample.json')
-    davie_client = DavieClient(settings_path=settings_path, auth_type=AuthenticationType.JWT,
-                               environment=Environment.dev)
-
-    davie_client._show_shelve()
-
+    davie_client = DavieClient(settings_path=settings_path,
+                               auth_type=AuthenticationType.JWT,
+                               environment=Environment.tei)
 
     aanlevering = davie_client.create_aanlevering_employee(
-        niveau='LOG-1', referentie='b2b integratie test 2', verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
-    davie_client.upload_file(id=aanlevering.id, file_path=Path('type_template_2_buizen.json'))
+        niveau='LOG-1', referentie='b2b integratie test 2',
+        verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
+    davie_client.upload_file(id=aanlevering.id,
+                             file_path=Path('type_template_2_buizen.json'))
     davie_client.finalize_and_wait(id=aanlevering.id)
 
 
