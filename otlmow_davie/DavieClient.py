@@ -1,3 +1,4 @@
+import datetime
 import shelve
 import time
 from pathlib import Path
@@ -65,13 +66,18 @@ class DavieClient:
                         nummer: Optional[str] = None, substatus: Optional[AanleveringSubstatus] = None) -> None:
         with shelve.open(str(self.shelve_path), writeback=True) as db:
             if id not in db.keys():
-                db[id] = {}
+                db[id] = {'created': datetime.datetime.utcnow()}
             if nummer is not None:
                 db[id]['nummer'] = nummer
             if status is not None:
                 db[id]['status'] = status
             if substatus is not None:
                 db[id]['substatus'] = substatus
+            # auto prune
+            for id in db.keys():
+                if db[id]['created'] > datetime.datetime.utcnow() + datetime.timedelta(days=7):
+                    del db[id]
+
             self.db = dict(db)
 
     def _show_shelve(self) -> None:
