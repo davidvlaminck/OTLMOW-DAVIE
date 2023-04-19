@@ -8,7 +8,6 @@ from otlmow_davie.RequestHandler import RequestHandler
 class DavieRestClient:
     def __init__(self, request_handler: RequestHandler):
         self.request_handler = request_handler
-        self.request_handler.requester.first_part_url += 'davie-core/public-api/'
         self.pagingcursor = ''
 
     def get_aanlevering(self, id: str) -> Aanlevering:
