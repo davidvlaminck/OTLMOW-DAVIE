@@ -1,10 +1,10 @@
 from abc import ABC
 from typing import Optional
 
-from pydantic import Field
+from pydantic import Field, conlist
 from pydantic import BaseModel as PydanticBaseModel
 
-from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus, MethodEnum
+from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus, MethodEnum, ExportType, LevelOfGeometry
 
 
 class BaseModel(PydanticBaseModel):
@@ -46,7 +46,7 @@ class AanleveringResultaat(BaseModel):
     link ontbreekt op een aanlevering dan betekent dit dat de corresponderende actie niet mogelijk is op de
     aanlevering. """
     aanlevering: Aanlevering
-    links: 	AanleveringHateoasLinks
+    links: AanleveringHateoasLinks
 
     class Config:
         use_enum_values = True
@@ -102,3 +102,31 @@ class AanleveringBestandResultaat(BaseModel):
     ontbreekt op een bestand dan betekent dit dat de corresponderende actie niet mogelijk is op het bestand. """
     bestand: AanleveringBestand
     links: AanleveringBestandHateoasLinks
+
+
+class AsIsAanvraagCreatie(BaseModel):
+    """Capteert alle informatie rond het aanmaken van een asis aanvraag voor een aanlevering."""
+    geometrie: Optional[str]
+    exportType: ExportType
+    assetTypes: conlist(str, min_items=1, max_items=50)
+    levelOfGeometry: LevelOfGeometry = LevelOfGeometry.ALLES
+    emailAdres: Optional[str]
+
+
+class AsIsAanvraagHateoasLinks(BaseModel):
+    """De HATEOAS links die van toepassing zijn op een asis aanvraag."""
+    self: Optional[HateoasLink]
+
+
+class AsIsAanvraag(BaseModel):
+    """Groepeert alle informatie van een asis aanvraag van een aanlevering"""
+    id: str
+    aanleveringId: str
+
+
+class AsIsAanvraagResultaat(BaseModel):
+    """Een aanlevering met zijn links. Deze links geven aan welke acties mogelijk zijn op de aanlevering. Als een
+    link ontbreekt op een aanlevering dan betekent dit dat de corresponderende actie niet mogelijk is op de
+    aanlevering. """
+    asisAanvraag: AsIsAanvraag
+    links: Optional[AsIsAanvraagHateoasLinks]

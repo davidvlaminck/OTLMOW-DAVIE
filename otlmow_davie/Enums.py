@@ -32,6 +32,23 @@ class AanleveringSubstatus(str, Enum):
     OPGESCHORT = 'OPGESCHORT'
 
 
+class ExportType(str, Enum):
+    """De verschillende export formaten voor het aanvragen van een asis toestand."""
+    JSON = 'json'
+    CSV = 'csv'
+    XLSX = 'xlsx'
+    SDF = 'sdf'
+    GEOJSON = 'geojson'
+
+
+class LevelOfGeometry(str, Enum):
+    """De verschillende export formaten voor het aanvragen van een asis toestand."""
+    LOG0 = 'LOG0'
+    LOGMIN1 = 'LOG-1'
+    ALLES = 'Alles'
+    ONGEKEND = 'Ongekend'
+
+
 class MethodEnum(str, Enum):
     """De verschillende HTTP method verbs die worden ondersteund in een HATEOAS link"""
     GET = 'GET'

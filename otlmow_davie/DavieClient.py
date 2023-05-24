@@ -1,12 +1,15 @@
 import datetime
+import pathlib
 import shelve
 import time
 from pathlib import Path
 from typing import Optional
 
-from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker
+from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker, \
+    AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer
 from otlmow_davie.DavieRestClient import DavieRestClient
-from otlmow_davie.Enums import Environment, AuthenticationType, AanleveringStatus, AanleveringSubstatus
+from otlmow_davie.Enums import Environment, AuthenticationType, AanleveringStatus, AanleveringSubstatus, \
+    LevelOfGeometry, ExportType
 from otlmow_davie.RequestHandler import RequestHandler
 from otlmow_davie.RequesterFactory import RequesterFactory
 from otlmow_davie.SettingsManager import SettingsManager
@@ -45,10 +48,20 @@ class DavieClient:
 
     def create_aanlevering(self, ondernemingsnummer: str, besteknummer: str, dossiernummer: str,
                            referentie: str, dienstbevelnummer: str = None, nota: str = None) -> Aanlevering:
-        nieuwe_aanlevering = AanleveringCreatieMedewerker(
+        nieuwe_aanlevering = AanleveringCreatieOpdrachtnemer(
             ondernemingsnummer=ondernemingsnummer, besteknummer=besteknummer, dossiernummer=dossiernummer,
             referentie=referentie, dienstbevelnummer=dienstbevelnummer, nota=nota)
         return self._create_aanlevering(nieuwe_aanlevering)
+
+    def create_aanvraag_as_is(self, aanlevering_id: str, asset_types: [str],
+                              l_o_g: LevelOfGeometry = LevelOfGeometry.ALLES,
+                              email: str = None, geometrie: str = None,
+                              export_type: str = ExportType.XLSX) -> AsIsAanvraag:
+        as_is_aanvraag_create = AsIsAanvraagCreatie(assetTypes=asset_types, levelOfGeometry=l_o_g, email=email,
+                                                    geometrie=geometrie, exportType=export_type)
+        as_is_aanvraag = self.rest_client.create_aanvraag_as_is(aanlevering_id, as_is_aanvraag_create)
+        self._track_as_is_aanvraag(aanlevering_id, export_type)
+        return as_is_aanvraag
 
     def _create_aanlevering(self, nieuwe_aanlevering: AanleveringCreatie) -> Aanlevering:
         aanlevering = self.rest_client.create_aanlevering(nieuwe_aanlevering)
@@ -63,7 +76,8 @@ class DavieClient:
         return self.rest_client.get_aanlevering(id=id)
 
     def _save_to_shelve(self, id: Optional[str], status: Optional[AanleveringStatus] = None,
-                        nummer: Optional[str] = None, substatus: Optional[AanleveringSubstatus] = None) -> None:
+                        nummer: Optional[str] = None, substatus: Optional[AanleveringSubstatus] = None,
+                        as_is_aanvraag: Optional[str] = None, ) -> None:
         with shelve.open(str(self.shelve_path), writeback=True) as db:
             if id not in db.keys():
                 db[id] = {'created': datetime.datetime.utcnow()}
@@ -73,9 +87,11 @@ class DavieClient:
                 db[id]['status'] = status
             if substatus is not None:
                 db[id]['substatus'] = substatus
+            if as_is_aanvraag is not None:
+                db[id]['as_is_aanvraag'] = as_is_aanvraag
             # auto prune
             for id in db.keys():
-                if db[id]['created'] > datetime.datetime.utcnow() + datetime.timedelta(days=7):
+                if db[id]['created'] + datetime.timedelta(days=1) < datetime.datetime.utcnow():
                     del db[id]
 
             self.db = dict(db)
@@ -88,16 +104,45 @@ class DavieClient:
         self._save_to_shelve(id=aanlevering.id, nummer=aanlevering.nummer,
                              status=aanlevering.status, substatus=aanlevering.substatus)
 
+    def _track_as_is_aanvraag(self, aanlevering_id: str, as_is_aanvraag: ExportType):
+        self._save_to_shelve(id=aanlevering_id, as_is_aanvraag=as_is_aanvraag)
+
     def upload_file(self, id: str, file_path: Path):
         if not Path.is_file(file_path):
             raise FileExistsError(f'file does not exist: {file_path}')
         self.rest_client.upload_file(id=id, file_path=file_path)
 
+    def wait_and_download_as_is_result(self, aanlevering_id: str, interval: int = 10, dir_path: Path = None) -> bool:
+        if dir_path is None:
+            dir_path = pathlib.Path(__file__).parent
+        while True:
+            self.track_aanlevering_by_id(aanlevering_id)
+            self._show_shelve()
+            if self.db[aanlevering_id]['status'] != AanleveringStatus.DATA_AANGEVRAAGD:
+                RuntimeError(f"{aanlevering_id} has status {self.db[aanlevering_id]['status']} instead of DATA_AANGEVRAAGD")
+
+            if self.db[aanlevering_id]['substatus'] != AanleveringSubstatus.BESCHIKBAAR and \
+                    self.db[aanlevering_id]['substatus'] == AanleveringSubstatus.LOPEND:
+                RuntimeError(f"{aanlevering_id} has substatus {self.db[aanlevering_id]['status']} instead of LOPEND or BESCHIKBAAR")
+
+            if self.db[aanlevering_id]['substatus'] == AanleveringSubstatus.BESCHIKBAAR:
+                break
+
+            time.sleep(interval)
+
+        # download
+        format = self.db[aanlevering_id]['as_is_aanvraag']
+        file_name = self.db[aanlevering_id]['nummer'] + '.' + format
+        self.rest_client.download_as_is_result(aanlevering_id=aanlevering_id, dir_path=dir_path, file_name=file_name)
+        return True
+
     def finalize_and_wait(self, id: str, interval: int = 10) -> bool:
         self.track_aanlevering_by_id(id)
-        if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id]['substatus'] == AanleveringSubstatus.AANGEBODEN:
+        if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id][
+            'substatus'] == AanleveringSubstatus.AANGEBODEN:
             return True
-        if self.db[id]['status'] != AanleveringStatus.DATA_AANGELEVERD and self.db[id]['status'] != AanleveringStatus.IN_OPMAAK:
+        if self.db[id]['status'] != AanleveringStatus.DATA_AANGELEVERD and self.db[id][
+            'status'] != AanleveringStatus.IN_OPMAAK:
             raise RuntimeError(f"{id} has status {self.db[id]['status']} instead of IN_OPMAAK / DATA_AANGELEVERD")
 
         if AanleveringStatus.IN_OPMAAK:
@@ -111,4 +156,3 @@ class DavieClient:
             time.sleep(interval)
 
         return True
-
