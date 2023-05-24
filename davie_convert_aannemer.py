@@ -22,6 +22,6 @@ if __name__ == '__main__':
     davie_client.finalize_and_wait(id=aanlevering.id)
 
     aanvraag_as_is = davie_client.create_aanvraag_as_is(aanlevering_id=aanlevering.id,
-        asset_types=['https://wegenenverkeer.data.vlaanderen.be/ns/onderdeel#RechteSteun'],
+        asset_types=['https://wegenenverkeer.data.vlaanderen.be/ns/onderdeel#WVLichtmast'],
         geometrie='POLYGON((109000 180000, 111000 180000, 111000 190000, 109000 190000, 109000 180000))')
     davie_client.wait_and_download_as_is_result(aanlevering_id=aanlevering.id)
