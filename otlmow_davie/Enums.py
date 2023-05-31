@@ -5,6 +5,7 @@ class Environment(Enum):
     prd = 1
     tei = 2
     dev = 3
+    aim = 4
 
 
 class AuthenticationType(Enum):

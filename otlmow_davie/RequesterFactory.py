@@ -20,6 +20,8 @@ class RequesterFactory:
             first_part_url = 'https://services.apps-tei.mow.vlaanderen.be/'
         elif environment == Environment.dev:
             first_part_url = 'https://services.apps-dev.mow.vlaanderen.be/'
+        elif environment == Environment.aim:
+            first_part_url = 'https://services-aim.apps-dev.mow.vlaanderen.be/'
 
         if auth_type == AuthenticationType.JWT:
             return JWTRequester(private_key_path=auth_info['key_path'],
