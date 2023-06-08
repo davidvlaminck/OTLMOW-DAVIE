@@ -3,47 +3,53 @@ from pathlib import Path
 
 from otlmow_davie.DavieDomain import AanleveringCreatie, AanleveringResultaat, Aanlevering, AanleveringBestandResultaat, \
     AsIsAanvraagResultaat, AsIsAanvraagCreatie, AsIsAanvraag
-from otlmow_davie.RequestHandler import RequestHandler
+from otlmow_davie.JWTAsyncRequester import JWTAsyncRequester
 
 
 class DavieRestClient:
-    def __init__(self, request_handler: RequestHandler):
-        self.request_handler = request_handler
+    def __init__(self, requester: JWTAsyncRequester):
+        self.requester = requester
         self.pagingcursor = ''
 
-    def get_aanlevering(self, id: str) -> Aanlevering:
-        response = self.request_handler.perform_get_request(
+    async def get_aanlevering(self, id: str) -> Aanlevering:
+        response = await self.requester.get(
             url=f'aanleveringen/{id}')
-        if response.status_code == 404:
+        response_text = await response.text()
+        if response.status == 404:
             logging.debug(response)
             raise ValueError(f'Could not find aanlevering {id}.')
-        elif response.status_code != 200:
+        elif response.status != 200:
             logging.debug(response)
-            raise ProcessLookupError(response.content.decode("utf-8"))
-        return AanleveringResultaat.parse_raw(response.text).aanlevering
+            raise ProcessLookupError(response_text)
 
-    def create_aanlevering(self, nieuwe_aanlevering: AanleveringCreatie) -> Aanlevering:
+        return AanleveringResultaat.parse_raw(response_text).aanlevering
+
+    async def create_aanlevering(self, nieuwe_aanlevering: AanleveringCreatie) -> Aanlevering:
         nieuwe_aanlevering = nieuwe_aanlevering.json()
 
-        response = self.request_handler.perform_post_request(
+        response = await self.requester.post(
             url=f'aanleveringen', data=nieuwe_aanlevering)
-        if response.status_code != 200:
-            logging.debug(response)
-            raise ProcessLookupError(response.content.decode("utf-8"))
-        resultaat = AanleveringResultaat.parse_raw(response.text)
+        response_text = await response.text()
+
+        if str(response.status)[0] != '2': # TODO fix status code check
+            print('Status:', response.status, 'Headers:', response.headers, 'Error Response:', response_text)
+            raise RuntimeError('Could not create aanlevering.')
+
+        resultaat = AanleveringResultaat.parse_raw(response_text)
         logging.debug(f"aanlevering succesvol aangemaakt, id is {resultaat.aanlevering.id}")
         return resultaat.aanlevering
 
-    def create_aanvraag_as_is(self, aanlevering_id: str, as_is_aanvraag_create: AsIsAanvraagCreatie) -> AsIsAanvraag:
+    async def create_aanvraag_as_is(self, aanlevering_id: str, as_is_aanvraag_create: AsIsAanvraagCreatie) -> AsIsAanvraag:
         as_is_aanvraag_create_json = as_is_aanvraag_create.json()
-        response = self.request_handler.perform_post_request(
+        response = await self.requester.post(
             url=f'aanleveringen/{aanlevering_id}/asisaanvragen', data=as_is_aanvraag_create_json)
+        response_text = await response.text()
 
-        if response.status_code != 200:
+        if response.status != 200:
             logging.debug(response)
             raise ValueError(f'Could not create as_aanvraag in aanlevering {aanlevering_id}.')
 
-        resultaat = AsIsAanvraagResultaat.parse_raw(response.text)
+        resultaat = AsIsAanvraagResultaat.parse_raw(response_text)
         logging.debug(f"as_is_aanvraag succesvol aangemaakt, id is {resultaat.asisAanvraag.id}")
         return resultaat.asisAanvraag
 
@@ -75,12 +81,13 @@ class DavieRestClient:
             raise ProcessLookupError(response.content.decode("utf-8"))
         logging.debug('finalize succeeded')
 
-    def download_as_is_result(self, aanlevering_id, file_name: str, dir_path: Path) -> None:
-        response = self.request_handler.perform_get_request(
+    async def download_as_is_result(self, aanlevering_id, file_name: str, dir_path: Path, chunk_size:int = 1000) -> None:
+        response = await self.requester.get(
             url=f'aanleveringen/{aanlevering_id}/asisaanvragen/export')
-        if response.status_code != 200:
+        if response.status != 200:
             logging.debug(response)
             raise ValueError(f'Could not download as is aanvraag in {aanlevering_id}.')
 
         with open(dir_path / file_name, 'wb') as f:
-            f.write(response.content)
+            async for chunk in response.content.iter_chunked(chunk_size):
+                f.write(chunk)

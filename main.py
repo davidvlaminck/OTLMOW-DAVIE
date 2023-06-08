@@ -1,9 +1,23 @@
+import asyncio
 import logging
 import time
 from pathlib import Path
 
 from otlmow_davie.DavieClient import DavieClient
 from otlmow_davie.Enums import AuthenticationType, Environment
+
+
+async def main(davie_client: DavieClient):
+    # aanlevering = await davie_client.create_aanlevering_employee_async(
+    #     niveau='LOG-1', referentie='as-is test 1',
+    #     verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
+
+    # aanvraag_as_is = await davie_client.create_aanvraag_as_is_async(
+    #     aanlevering_id='6920f4f9-b9be-462f-8f60-d0f7c68f2525',
+    #     asset_types=['https://wegenenverkeer.data.vlaanderen.be/ns/onderdeel#WVLichtmast'],
+    #     geometrie='POLYGON((109000 180000, 111000 180000, 111000 190000, 109000 190000, 109000 180000))')
+
+    await davie_client.download_as_is_result_async(aanlevering_id='6920f4f9-b9be-462f-8f60-d0f7c68f2525')
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -14,18 +28,19 @@ if __name__ == '__main__':
     settings_path = Path('/home/davidlinux/Documents/AWV/resources/settings_TypeTemplateProcessor.json')
     davie_client = DavieClient(settings_path=settings_path,
                                auth_type=AuthenticationType.JWT,
-                               environment=Environment.tei)
+                               environment=Environment.dev)
 
-    # aanlevering = davie_client.create_aanlevering_employee(
-    #     niveau='LOG-1', referentie='as-is test 1',
-    #     verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629')
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main(davie_client))
 
-    aanvraag_as_is = davie_client.create_aanvraag_as_is(
-        aanlevering_id='3d16b7b0-5548-427d-80f6-1cb042a9487f',
-        asset_types=['https://wegenenverkeer.data.vlaanderen.be/ns/onderdeel#WVLichtmast'],
-        geometrie='POLYGON((109000 180000, 111000 180000, 111000 190000, 109000 190000, 109000 180000))')
 
-    davie_client.wait_and_download_as_is_result(aanlevering_id='3d16b7b0-5548-427d-80f6-1cb042a9487f')
+    #
+    # aanvraag_as_is = davie_client.create_aanvraag_as_is(
+    #     aanlevering_id=aanlevering.id,
+    #     asset_types=['https://wegenenverkeer.data.vlaanderen.be/ns/onderdeel#WVLichtmast'],
+    #     geometrie='POLYGON((109000 180000, 111000 180000, 111000 190000, 109000 190000, 109000 180000))')
+
+    # davie_client.wait_and_download_as_is_result(aanlevering_id=aanlevering.id)
 
     # davie_client.upload_file(id=aanlevering.id,
     #                          file_path=Path('type_template_30_masten.json'))

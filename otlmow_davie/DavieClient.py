@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import pathlib
 import shelve
@@ -23,8 +24,7 @@ class DavieClient:
         settings_manager = SettingsManager(settings_path=settings_path)
         requester = RequesterFactory.create_requester(settings=settings_manager.settings, auth_type=auth_type,
                                                       environment=environment)
-        request_handler = RequestHandler(requester=requester)
-        self.rest_client = DavieRestClient(request_handler=request_handler)
+        self.rest_client = DavieRestClient(requester=requester)
         if not Path.is_file(shelve_path):
             try:
                 import dbm.ndbm
@@ -36,7 +36,7 @@ class DavieClient:
 
         self.shelve_path = shelve_path
 
-    def create_aanlevering_employee(self, niveau: str, referentie: str, verificatorId: str, besteknummer: str = None,
+    async def create_aanlevering_employee_async(self, niveau: str, referentie: str, verificatorId: str, besteknummer: str = None,
                                     bestekomschrijving: str = None, dienstbevelnummer: str = None,
                                     dienstbevelomschrijving: str = None, dossiernummer: str = None, nota: str = None
                                     ) -> Aanlevering:
@@ -44,7 +44,7 @@ class DavieClient:
             niveau=niveau, referentie=referentie, verificatorId=verificatorId, besteknummer=besteknummer,
             bestekomschrijving=bestekomschrijving, dienstbevelnummer=dienstbevelnummer,
             dienstbevelomschrijving=dienstbevelomschrijving, dossiernummer=dossiernummer, nota=nota)
-        return self._create_aanlevering(nieuwe_aanlevering)
+        return await self._create_aanlevering_async(nieuwe_aanlevering)
 
     def create_aanlevering(self, ondernemingsnummer: str, besteknummer: str, dossiernummer: str,
                            referentie: str, dienstbevelnummer: str = None, nota: str = None) -> Aanlevering:
@@ -53,27 +53,27 @@ class DavieClient:
             referentie=referentie, dienstbevelnummer=dienstbevelnummer, nota=nota)
         return self._create_aanlevering(nieuwe_aanlevering)
 
-    def create_aanvraag_as_is(self, aanlevering_id: str, asset_types: [str],
+    async def create_aanvraag_as_is_async(self, aanlevering_id: str, asset_types: [str],
                               l_o_g: LevelOfGeometry = LevelOfGeometry.ALLES,
                               email: str = None, geometrie: str = None,
-                              export_type: str = ExportType.XLSX) -> AsIsAanvraag:
+                              export_type: ExportType = ExportType.XLSX) -> AsIsAanvraag:
         as_is_aanvraag_create = AsIsAanvraagCreatie(assetTypes=asset_types, levelOfGeometry=l_o_g, email=email,
                                                     geometrie=geometrie, exportType=export_type)
-        as_is_aanvraag = self.rest_client.create_aanvraag_as_is(aanlevering_id, as_is_aanvraag_create)
+        as_is_aanvraag = await self.rest_client.create_aanvraag_as_is(aanlevering_id, as_is_aanvraag_create)
         self._track_as_is_aanvraag(aanlevering_id, export_type)
         return as_is_aanvraag
 
-    def _create_aanlevering(self, nieuwe_aanlevering: AanleveringCreatie) -> Aanlevering:
-        aanlevering = self.rest_client.create_aanlevering(nieuwe_aanlevering)
+    async def _create_aanlevering_async(self, nieuwe_aanlevering: AanleveringCreatie) -> Aanlevering:
+        aanlevering = await self.rest_client.create_aanlevering(nieuwe_aanlevering)
         self._track_aanlevering(aanlevering)
         return aanlevering
 
-    def track_aanlevering_by_id(self, id: str):
-        aanlevering = self.get_aanlevering(id=id)
+    async def track_aanlevering_by_id(self, id: str):
+        aanlevering = await self.get_aanlevering(id=id)
         self._track_aanlevering(aanlevering)
 
-    def get_aanlevering(self, id: str) -> Aanlevering:
-        return self.rest_client.get_aanlevering(id=id)
+    async def get_aanlevering(self, id: str) -> Aanlevering:
+        return await self.rest_client.get_aanlevering(id=id)
 
     def _save_to_shelve(self, id: Optional[str], status: Optional[AanleveringStatus] = None,
                         nummer: Optional[str] = None, substatus: Optional[AanleveringSubstatus] = None,
@@ -112,11 +112,11 @@ class DavieClient:
             raise FileExistsError(f'file does not exist: {file_path}')
         self.rest_client.upload_file(id=id, file_path=file_path)
 
-    def wait_and_download_as_is_result(self, aanlevering_id: str, interval: int = 10, dir_path: Path = None) -> bool:
+    async def download_as_is_result_async(self, aanlevering_id: str, interval: int = 10, dir_path: Path = None) -> bool:
         if dir_path is None:
             dir_path = pathlib.Path(__file__).parent
         while True:
-            self.track_aanlevering_by_id(aanlevering_id)
+            await self.track_aanlevering_by_id(aanlevering_id)
             self._show_shelve()
             if self.db[aanlevering_id]['status'] != AanleveringStatus.DATA_AANGEVRAAGD:
                 RuntimeError(f"{aanlevering_id} has status {self.db[aanlevering_id]['status']} instead of DATA_AANGEVRAAGD")
@@ -128,12 +128,12 @@ class DavieClient:
             if self.db[aanlevering_id]['substatus'] == AanleveringSubstatus.BESCHIKBAAR:
                 break
 
-            time.sleep(interval)
+            await asyncio.sleep(interval)
 
         # download
         format = self.db[aanlevering_id]['as_is_aanvraag']
         file_name = self.db[aanlevering_id]['nummer'] + '.' + format
-        self.rest_client.download_as_is_result(aanlevering_id=aanlevering_id, dir_path=dir_path, file_name=file_name)
+        await self.rest_client.download_as_is_result(aanlevering_id=aanlevering_id, dir_path=dir_path, file_name=file_name)
         return True
 
     def finalize_and_wait(self, id: str, interval: int = 10) -> bool:
