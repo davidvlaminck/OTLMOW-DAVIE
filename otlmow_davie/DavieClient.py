@@ -107,10 +107,10 @@ class DavieClient:
     def _track_as_is_aanvraag(self, aanlevering_id: str, as_is_aanvraag: ExportType):
         self._save_to_shelve(id=aanlevering_id, as_is_aanvraag=as_is_aanvraag)
 
-    def upload_file(self, id: str, file_path: Path):
+    async def upload_file(self, id: str, file_path: Path):
         if not Path.is_file(file_path):
             raise FileExistsError(f'file does not exist: {file_path}')
-        self.rest_client.upload_file(id=id, file_path=file_path)
+        await self.rest_client.upload_file(id=id, file_path=file_path)
 
     async def download_as_is_result_async(self, aanlevering_id: str, interval: int = 10, dir_path: Path = None) -> bool:
         if dir_path is None:
@@ -134,6 +134,26 @@ class DavieClient:
         format = self.db[aanlevering_id]['as_is_aanvraag']
         file_name = self.db[aanlevering_id]['nummer'] + '.' + format
         await self.rest_client.download_as_is_result(aanlevering_id=aanlevering_id, dir_path=dir_path, file_name=file_name)
+        return True
+    
+    async def finalize_and_wait_async(self, id: str, interval: int = 10) -> bool:
+        await self.track_aanlevering_by_id(id)
+        if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id][
+            'substatus'] == AanleveringSubstatus.AANGEBODEN:
+            return True
+        if self.db[id]['status'] not in {AanleveringStatus.DATA_AANGELEVERD, AanleveringStatus.IN_OPMAAK}:
+            raise RuntimeError(f"{id} has status {self.db[id]['status']} instead of IN_OPMAAK / DATA_AANGELEVERD")
+
+        if AanleveringStatus.IN_OPMAAK:
+            self.rest_client.finalize(id=id)
+
+        while True:
+            await self.track_aanlevering_by_id(id)
+            self._show_shelve()
+            if 'substatus' in self.db[id] and self.db[id]['substatus'] != AanleveringSubstatus.LOPEND:
+                break
+            await asyncio.sleep(interval)
+
         return True
 
     def finalize_and_wait(self, id: str, interval: int = 10) -> bool:

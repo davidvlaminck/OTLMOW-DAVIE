@@ -53,9 +53,9 @@ class DavieRestClient:
         logging.debug(f"as_is_aanvraag succesvol aangemaakt, id is {resultaat.asisAanvraag.id}")
         return resultaat.asisAanvraag
 
-    def upload_file(self, id: str, file_path: Path) -> AanleveringBestandResultaat:
+    async def upload_file(self, id: str, file_path: Path) -> AanleveringBestandResultaat:
         with open(file_path, "rb") as data:
-            response = self.request_handler.perform_post_request(
+            response = await self.requester.post(
                 url=f'aanleveringen/{id}/bestanden',
                 params={"bestandsnaam": file_path.name},
                 data=data)
@@ -71,7 +71,7 @@ class DavieRestClient:
             return resultaat
 
     def finalize(self, id: str) -> None:
-        response = self.request_handler.perform_post_request(
+        response = self.requester.post(
             url=f'aanleveringen/{id}/bestanden/finaliseer')
         if response.status_code == 404:
             logging.debug(response)
