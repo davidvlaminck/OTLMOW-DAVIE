@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker, \
-    AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer
+    AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer, AanleveringCreatieControlefiche
 from otlmow_davie.DavieRestClient import DavieRestClient
 from otlmow_davie.Enums import Environment, AuthenticationType, AanleveringStatus, AanleveringSubstatus, \
     LevelOfGeometry, ExportType
@@ -44,6 +44,16 @@ class DavieClient:
             niveau=niveau, referentie=referentie, verificatorId=verificatorId, besteknummer=besteknummer,
             bestekomschrijving=bestekomschrijving, dienstbevelnummer=dienstbevelnummer,
             dienstbevelomschrijving=dienstbevelomschrijving, dossiernummer=dossiernummer, nota=nota)
+        return self._create_aanlevering(nieuwe_aanlevering)
+
+    def create_aanlevering_controlefiche(self, niveau: str, referentie: str, verificatorId: str, besteknummer: str = None,
+                                    bestekomschrijving: str = None, dienstbevelnummer: str = None,
+                                    dienstbevelomschrijving: str = None, dossiernummer: str = None
+                                    ) -> Aanlevering:
+        nieuwe_aanlevering = AanleveringCreatieControlefiche(
+            niveau=niveau, referentie=referentie, verificatorId=verificatorId, besteknummer=besteknummer,
+            bestekomschrijving=bestekomschrijving, dienstbevelnummer=dienstbevelnummer,
+            dienstbevelomschrijving=dienstbevelomschrijving, dossiernummer=dossiernummer)
         return self._create_aanlevering(nieuwe_aanlevering)
 
     def create_aanlevering(self, ondernemingsnummer: str, besteknummer: str, dossiernummer: str,

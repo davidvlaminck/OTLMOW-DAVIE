@@ -72,8 +72,8 @@ class AanleveringCreatieMedewerker(AanleveringCreatie):
 
 
 class AanleveringCreatieOpdrachtnemer(AanleveringCreatie):
-    """Capteert alle informatie rond het aanmaken van een aanlevering voor een opdrachtnemer via een rechtstreekse (
-    B2B) integratie met de davie-core REST API. """
+    """Capteert alle informatie rond het aanmaken van een aanlevering voor een opdrachtnemer via een rechtstreekse
+    (B2B) integratie met de davie-core REST API. """
     ondernemingsnummer: str
     besteknummer: str
     dienstbevelnummer: Optional[str]
@@ -81,6 +81,17 @@ class AanleveringCreatieOpdrachtnemer(AanleveringCreatie):
     referentie: str = Field(..., max_length=80)
     nota: Optional[str] = Field(None, max_length=250)
     type: str = 'aanmakenAanleveringOpdrachtnemer'
+
+
+class AanleveringCreatieControlefiche(AanleveringCreatie):
+    """Capteert alle informatie rond het aanmaken van een aanlevering voor een of meerdere controlefiches via een
+    rechtstreekse (B2B) integratie met de davie-core REST API."""
+    ondernemingsnummer: Optional[str]
+    besteknummer: Optional[str]
+    dienstbevelnummer: Optional[str]
+    dossiernummer: Optional[str]
+    referentie: Optional[str] = Field(..., max_length=80)
+    type: str = 'aanmakenAanleveringControleFiche'
 
 
 class AanleveringBestand(BaseModel):
