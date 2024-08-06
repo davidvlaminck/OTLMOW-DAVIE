@@ -12,6 +12,59 @@ class BaseModel(PydanticBaseModel):
         arbitrary_types_allowed = True
 
 
+class OpgelijsteAanlevering(BaseModel):
+    id: str
+# id*	string
+# Id van de aanlevering
+# isStudie*	boolean
+# deprecated: true
+# Vlag die aangeeft of het om een studie gaat. Gebruik type om te weten of een aanlevering een studie betreft
+# aanleveringnummer*	string
+# Volgnummer van de aanlevering
+# aanvrager*	string
+# Gebruiker die de aanlevering heeft aangemaakt
+# referentie*	string
+# De vrije referentie van de aanlevering
+# ondernemingInfo*	Onderneming{...}
+# dossierNummer	string
+# Het dossiernummer van de aanlevering
+# besteknummer	string
+# Het besteknummer van de aanlevering
+# dienstbevelnummer	string
+# Het dienstbevelnummer van de aanlevering
+# aanmaakDatum*	string($date-time)
+# De datum waarop de aanlevering aangemaakt werd
+# vervalOfEinddatum*	string($date)
+# De vervaldatum van de aanlevering (indien de aanlevering nog niet in een eindstatus zit), of de einddatum (indien de aanlevering in een eindstatus zit)
+# status*	string
+# Status van de aanlevering
+# Enum:
+# Array [ 5 ]
+# substatus	string
+# Substatus van de aanlevering
+# Enum:
+# Array [ 6 ]
+# omschrijving	string
+# example: Het bestand werd opgeladen
+# Een omschrijving van de laatste status wijziging
+# type*	string
+# Het type van de aanlevering
+# Enum:
+# Array [ 3 ]
+
+
+class OpgelijsteAanleveringResultaat:
+    aanlevering: OpgelijsteAanlevering
+
+
+class PagedOpgelijsteAanleveringResultaat(BaseModel):
+    data: [OpgelijsteAanleveringResultaat]
+    #links: PagedLinks
+    from_: int = Field(..., alias='from')
+    total: int
+    size: int
+
+
 class Aanlevering(BaseModel):
     """Groepeert alle informatie van een aanlevering"""
     id: str
