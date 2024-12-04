@@ -9,19 +9,29 @@ from otlmow_davie.JWTRequester import JWTRequester
 
 class RequesterFactory:
     @staticmethod
-    def create_requester(settings: Dict, auth_type: AuthenticationType, environment: Environment
-                         ) -> Union[CertRequester, JWTRequester]:
+    def create_requester(settings: Dict, auth_type: AuthenticationType, environment: Environment, 
+                         use_services: bool = True) -> Union[CertRequester, JWTRequester]:
         auth_info = settings['authentication'][auth_type.name][environment.name]
 
         first_part_url = ''
-        if environment == Environment.prd:
-            first_part_url = 'https://services.apps.mow.vlaanderen.be/'
-        elif environment == Environment.tei:
-            first_part_url = 'https://services.apps-tei.mow.vlaanderen.be/'
-        elif environment == Environment.dev:
-            first_part_url = 'https://services.apps-dev.mow.vlaanderen.be/'
-        elif environment == Environment.aim:
-            first_part_url = 'https://services-aim.apps-dev.mow.vlaanderen.be/'
+        if use_services:
+            if environment == Environment.prd:
+                first_part_url = 'https://services.apps.mow.vlaanderen.be/'
+            elif environment == Environment.tei:
+                first_part_url = 'https://services.apps-tei.mow.vlaanderen.be/'
+            elif environment == Environment.dev:
+                first_part_url = 'https://services.apps-dev.mow.vlaanderen.be/'
+            elif environment == Environment.aim:
+                first_part_url = 'https://services-aim.apps-dev.mow.vlaanderen.be/'
+        else:
+            if environment == Environment.prd:
+                first_part_url = 'https://apps.mow.vlaanderen.be/'
+            elif environment == Environment.tei:
+                first_part_url = 'https://apps-tei.mow.vlaanderen.be/'
+            elif environment == Environment.dev:
+                first_part_url = 'https://apps-dev.mow.vlaanderen.be/'
+            elif environment == Environment.aim:
+                first_part_url = 'https://aim.apps-dev.mow.vlaanderen.be/'
 
         if auth_type == AuthenticationType.JWT:
             return JWTRequester(private_key_path=auth_info['key_path'],

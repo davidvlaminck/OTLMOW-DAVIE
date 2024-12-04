@@ -14,23 +14,18 @@ class BaseModel(PydanticBaseModel):
 
 class OpgelijsteAanlevering(BaseModel):
     id: str
-# id*	string
-# Id van de aanlevering
-# isStudie*	boolean
-# deprecated: true
-# Vlag die aangeeft of het om een studie gaat. Gebruik type om te weten of een aanlevering een studie betreft
-# aanleveringnummer*	string
-# Volgnummer van de aanlevering
-# aanvrager*	string
-# Gebruiker die de aanlevering heeft aangemaakt
-# referentie*	string
-# De vrije referentie van de aanlevering
+    isStudie: bool
+    aanleveringnummer: str
+    aanvrager: str
+    referentie: str
+
+
 # ondernemingInfo*	Onderneming{...}
-# dossierNummer	string
-# Het dossiernummer van de aanlevering
-# besteknummer	string
-# Het besteknummer van de aanlevering
-# dienstbevelnummer	string
+    dossierNummer: str
+
+    besteknummer: str
+
+    dienstbevelnummer: str
 # Het dienstbevelnummer van de aanlevering
 # aanmaakDatum*	string($date-time)
 # De datum waarop de aanlevering aangemaakt werd
@@ -58,7 +53,7 @@ class OpgelijsteAanleveringResultaat:
 
 
 class PagedOpgelijsteAanleveringResultaat(BaseModel):
-    data: [OpgelijsteAanleveringResultaat]
+    data: list[OpgelijsteAanleveringResultaat]
     #links: PagedLinks
     from_: int = Field(..., alias='from')
     total: int
