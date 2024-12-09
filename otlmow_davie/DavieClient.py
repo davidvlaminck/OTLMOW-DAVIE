@@ -137,6 +137,7 @@ class DavieClient:
 
             if self.db[aanlevering_id]['substatus'] == AanleveringSubstatus.BESCHIKBAAR:
                 print(f"as-is aanvraag is reeds beschikbaar voor download, gebruikt download_as_is_result")
+                break
 
             time.sleep(interval)
 
