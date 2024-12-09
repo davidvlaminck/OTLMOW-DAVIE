@@ -1,52 +1,57 @@
 import datetime
 import json
+import logging
 import sys
-from binascii import hexlify
-from os import urandom
 from pathlib import Path
 
-import jwt  # pip install pyjwt and cryptography
+from jwt import encode
 import jwt.algorithms as jwt_algo
 import requests
+import string
+
+from random import choice
+
 from requests import Response
 
+from otlmow_davie.AbstractRequester import AbstractRequester
 
-class JWTRequester(requests.Session):
+
+class JWTRequester(AbstractRequester):
     def __init__(self, private_key_path: Path, client_id: str, first_part_url: str = ''):
         if 'cryptography' not in sys.modules:
-            raise ModuleNotFoundError('needs module cryptography to work')
+            raise ModuleNotFoundError('Needs module cryptography to work. Please install it with "pip install pyjwt cryptography"')
 
         self.private_key_path: Path = private_key_path
         self.client_id: str = client_id
         self.first_part_url: str = first_part_url
 
         self.oauth_token: str = ''
-        self.expires: datetime.datetime = datetime.datetime.utcnow() - datetime.timedelta(seconds=1)
+        self.expires: datetime.datetime = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=1)
         self.requested_at: datetime.datetime = self.expires
-        super().__init__()
+        super().__init__(first_part_url=first_part_url)
 
-    def get(self, url: str = '', **kwargs) -> Response:
+    def get(self, url='', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().get(url=self.first_part_url + url, **kwargs)
+        return super().get(url=url, **kwargs)
 
-    def post(self, url: str = '', **kwargs) -> Response:
+    def post(self, url='', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().post(url=self.first_part_url + url, **kwargs)
+        return super().post(url=url, **kwargs)
 
-    def put(self, url: str = '', **kwargs) -> Response:
+    def put(self, url='', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().put(url=self.first_part_url + url, **kwargs)
+        return super().put(url=url, **kwargs)
 
-    def patch(self, url: str = '', **kwargs) -> Response:
+    def patch(self, url='', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().patch(url=self.first_part_url + url, **kwargs)
+        return super().patch(url=url, **kwargs)
 
-    def delete(self, url: str = '', **kwargs) -> Response:
+    def delete(self, url='', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().delete(url=self.first_part_url + url, **kwargs)
+        return super().delete(url=url, **kwargs)
 
     def get_oauth_token(self) -> str:
-        if self.expires > datetime.datetime.utcnow():
+        if self.expires > datetime.datetime.now(datetime.timezone.utc):
             return self.oauth_token
 
         authentication_token = self.generate_authentication_token()
@@ -60,40 +65,42 @@ class JWTRequester(requests.Session):
         if 'headers' not in kwargs:
             kwargs['headers'] = {}
 
-        for arg in kwargs:
+        for arg, headers in kwargs.items():
             if arg == 'headers':
-                headers = kwargs[arg]
                 if 'accept' not in headers:
                     headers['accept'] = ''
                 if headers['accept'] is not None:
-                    if headers['accept'] != '':
-                        headers['accept'] = f"{headers['accept']}, application/json"
-                    else:
-                        headers['accept'] = 'application/json'
+                    headers['accept'] = (
+                        f"{headers['accept']}, application/json"
+                        if headers['accept'] != ''
+                        else 'application/json'
+                    )
                 headers['authorization'] = f'Bearer {bearer_token}'
                 if 'Content-Type' not in headers or headers['Content-Type'] is None:
-                    headers['Content-Type'] = 'application/vnd.awv.eminfra.v1+json'
+                    headers['Content-Type'] = 'application/vnd.davie-v1+json'
                 kwargs['headers'] = headers
 
         return kwargs
 
     def generate_authentication_token(self) -> str:
-        self.requested_at = datetime.datetime.utcnow()
+        self.requested_at = datetime.datetime.now(datetime.timezone.utc)
+        # Authentication token generation
         payload = {'iss': self.client_id,
                    'sub': self.client_id,
                    'aud': 'https://authenticatie.vlaanderen.be/op',
                    'exp': self.requested_at + datetime.timedelta(minutes=9),
-                   'jti': hexlify(urandom(16)).decode()
+                   'jti': ''.join(choice(string.ascii_lowercase) for _ in range(20))
                    }
 
         with open(self.private_key_path) as private_key:
             private_key_json = json.load(private_key)
             key = jwt_algo.RSAAlgorithm.from_jwk(private_key_json)
-            signed_jwt = jwt.encode(payload=payload, key=key, algorithm='RS256')
+            token = encode(payload=payload, key=key, algorithm='RS256')
 
-        return signed_jwt
+        return token
 
     def get_access_token(self, token: str) -> (str, int):
+        # Authorization access token generation
         url = 'https://authenticatie.vlaanderen.be/op/v1/token'
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         request_body = {
@@ -108,18 +115,9 @@ class JWTRequester(requests.Session):
 
         # Check for HTTP codes other than 200
         if response.status_code != 200:
-            print('Status:', response.status_code, 'Headers:', response.headers, 'Error Response:', response.content)
+            logging.error('Status:', response.status_code, 'Headers:', response.headers, 'Error Response:', response.content)
             raise RuntimeError(f'Could not get the acces token: {response.content}')
 
         response_json = response.json()
 
         return response_json['access_token'], response_json['expires_in']
-
-
-class SingletonJWTRequester(JWTRequester):
-    instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls.instance is None:
-            cls.instance = super(SingletonJWTRequester, cls).__new__(cls)
-        return cls.instance

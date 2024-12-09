@@ -167,7 +167,7 @@ class AsIsAanvraagCreatie(BaseModel):
     """Capteert alle informatie rond het aanmaken van een asis aanvraag voor een aanlevering."""
     geometrie: Optional[str]
     exportType: ExportType
-    assetTypes: [str]
+    assetTypes: list[str]
     levelOfGeometry: LevelOfGeometry = LevelOfGeometry.ALLES
     emailAdres: Optional[str]
 

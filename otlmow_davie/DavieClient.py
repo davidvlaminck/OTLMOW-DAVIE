@@ -8,23 +8,23 @@ from typing import Optional
 from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker, \
     AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer, AanleveringCreatieControlefiche
 from otlmow_davie.DavieRestClient import DavieRestClient
-from otlmow_davie.Enums import Environment, AuthenticationType, AanleveringStatus, AanleveringSubstatus, \
-    LevelOfGeometry, ExportType
-from otlmow_davie.RequestHandler import RequestHandler
+from otlmow_davie.Enums import Environment, AanleveringStatus, AanleveringSubstatus, \
+    LevelOfGeometry, ExportType, AuthType
 from otlmow_davie.RequesterFactory import RequesterFactory
-from otlmow_davie.SettingsManager import SettingsManager
 
 this_directory = Path(__file__).parent
 
 
 class DavieClient:
-    def __init__(self, settings_path: Path, auth_type: AuthenticationType, environment: Environment,
+    def __init__(self, settings_path: Path, auth_type: AuthType, environment: Environment, cookie: str = None,
                  shelve_path: Path = Path(this_directory / 'shelve')):
-        settings_manager = SettingsManager(settings_path=settings_path)
-        requester = RequesterFactory.create_requester(settings=settings_manager.settings, auth_type=auth_type,
-                                                      environment=environment)
-        request_handler = RequestHandler(requester=requester)
-        self.rest_client = DavieRestClient(request_handler=request_handler)
+        self.requester = RequesterFactory.create_requester(auth_type=auth_type, env=environment,
+                                                           settings_path=settings_path,
+                                                           cookie=cookie)
+        self.requester.first_part_url += 'davie-aanlevering/api/'
+        self.rest_client = DavieRestClient(requester=self.requester)
+
+
         if not Path.is_file(shelve_path):
             try:
                 import dbm.ndbm

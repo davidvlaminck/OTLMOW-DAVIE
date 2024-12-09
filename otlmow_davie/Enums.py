@@ -1,16 +1,16 @@
 from enum import Enum
 
-
 class Environment(Enum):
-    prd = 1
-    tei = 2
-    dev = 3
-    aim = 4
+    PRD = 'prd',
+    DEV = 'dev',
+    TEI = 'tei',
+    AIM = 'aim'
 
 
-class AuthenticationType(Enum):
-    JWT = 1
-    cert = 2
+class AuthType(Enum):
+    JWT = 'JWT',
+    CERT = 'cert',
+    COOKIE = 'cookie'
 
 
 class AanleveringStatus(str, Enum):

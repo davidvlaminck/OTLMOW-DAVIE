@@ -1,42 +1,33 @@
-from pathlib import Path
-
 from requests import Response
 
 from otlmow_davie.AbstractRequester import AbstractRequester
 
 
-class CertRequester(AbstractRequester):
-    def __init__(self, cert_path: str = None, key_path: str = None, first_part_url: str = ''):
+class CookieRequester(AbstractRequester):
+    def __init__(self, cookie: str = '', first_part_url: str = ''):
         super().__init__(first_part_url=first_part_url)
-        
-        if not Path(cert_path).exists():
-            raise FileNotFoundError(f"{cert_path} is not a valid path. Cert file does not exist.")
-        if not Path(key_path).exists():
-            raise FileNotFoundError(f"{key_path} is not a valid path. Key file does not exist.")
-        
-        self.cert_path = cert_path
-        self.key_path = key_path
-        self.first_part_url = first_part_url
+        self.cookie = cookie
+        self.headers.update({'Cookie': f'acm-awv={cookie}'})
 
     def get(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().get(url=url, cert=(self.cert_path, self.key_path), **kwargs)
+        return super().get(url=url, **kwargs)
 
     def post(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().post(url=url, cert=(self.cert_path, self.key_path), **kwargs)
+        return super().post(url=url, **kwargs)
 
     def put(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().put(url=url, cert=(self.cert_path, self.key_path), **kwargs)
+        return super().put(url=url, **kwargs)
 
     def patch(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().patch(url=url, cert=(self.cert_path, self.key_path), **kwargs)
+        return super().patch(url=url, **kwargs)
 
     def delete(self, url: str = '', **kwargs) -> Response:
         kwargs = self.modify_kwargs_for_bearer_token(kwargs)
-        return super().delete(url=url, cert=(self.cert_path, self.key_path), **kwargs)
+        return super().delete(url=url, **kwargs)
 
     @staticmethod
     def modify_kwargs_for_bearer_token(kwargs: dict) -> dict:
