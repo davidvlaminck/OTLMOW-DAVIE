@@ -21,7 +21,7 @@ class DavieClient:
         self.requester = RequesterFactory.create_requester(auth_type=auth_type, env=environment,
                                                            settings_path=settings_path,
                                                            cookie=cookie)
-        self.requester.first_part_url += 'davie-aanlevering/api/'
+        self.requester.first_part_url += ''
         self.rest_client = DavieRestClient(requester=self.requester)
 
 
@@ -120,11 +120,11 @@ class DavieClient:
     def upload_file(self, id: str, file_path: Path):
         if not Path.is_file(file_path):
             raise FileExistsError(f'file does not exist: {file_path}')
-        self.rest_client.upload_file(id=id, file_path=file_path)
+        return self.rest_client.upload_file(id=id, file_path=file_path)
 
     def wait_and_download_as_is_result(self, aanlevering_id: str, interval: int = 10, dir_path: Path = None) -> bool:
         if dir_path is None:
-            dir_path = pathlib.Path(__file__).parent
+            dir_path = Path(__file__).parent
         while True:
             self.track_aanlevering_by_id(aanlevering_id)
             self._show_shelve()
@@ -136,13 +136,22 @@ class DavieClient:
                 RuntimeError(f"{aanlevering_id} has substatus {self.db[aanlevering_id]['status']} instead of LOPEND or BESCHIKBAAR")
 
             if self.db[aanlevering_id]['substatus'] == AanleveringSubstatus.BESCHIKBAAR:
-                break
+                print(f"as-is aanvraag is reeds beschikbaar voor download, gebruikt download_as_is_result")
 
             time.sleep(interval)
 
         # download
-        format = self.db[aanlevering_id]['as_is_aanvraag']
-        file_name = self.db[aanlevering_id]['nummer'] + '.' + format
+        file_format = self.db[aanlevering_id]['as_is_aanvraag']
+        file_name = self.db[aanlevering_id]['nummer'] + '.' + file_format
+        self.rest_client.download_as_is_result(aanlevering_id=aanlevering_id, dir_path=dir_path, file_name=file_name)
+        return True
+
+    def download_as_is_result(self, aanlevering_id: str, dir_path: Path = None) -> bool:
+        if dir_path is None:
+            dir_path = Path(__file__).parent
+
+        file_format = self.db[aanlevering_id]['as_is_aanvraag']
+        file_name = self.db[aanlevering_id]['nummer'] + '.' + file_format
         self.rest_client.download_as_is_result(aanlevering_id=aanlevering_id, dir_path=dir_path, file_name=file_name)
         return True
 
@@ -151,8 +160,11 @@ class DavieClient:
         if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id][
             'substatus'] == AanleveringSubstatus.AANGEBODEN:
             return True
-        if self.db[id]['status'] != AanleveringStatus.DATA_AANGELEVERD and self.db[id][
-            'status'] != AanleveringStatus.IN_OPMAAK:
+        if self.db[id]['status'] not in [
+            AanleveringStatus.DATA_AANGELEVERD,
+            AanleveringStatus.IN_OPMAAK,
+        ] and not(self.db[id]['status'] == AanleveringStatus.DATA_AANGEVRAAGD and self.db[id]['substatus'] ==
+                  AanleveringSubstatus.BESCHIKBAAR):
             raise RuntimeError(f"{id} has status {self.db[id]['status']} instead of IN_OPMAAK / DATA_AANGELEVERD")
 
         if AanleveringStatus.IN_OPMAAK:
