@@ -19,13 +19,9 @@ class OpgelijsteAanlevering(BaseModel):
     aanvrager: str
     referentie: str
 
-
-# ondernemingInfo*	Onderneming{...}
-    dossierNummer: str
-
-    besteknummer: str
-
-    dienstbevelnummer: str
+    dossierNummer: Optional[str] = None
+    besteknummer: Optional[str] = None
+    dienstbevelnummer: Optional[str] = None
 # Het dienstbevelnummer van de aanlevering
 # aanmaakDatum*	string($date-time)
 # De datum waarop de aanlevering aangemaakt werd
@@ -48,7 +44,7 @@ class OpgelijsteAanlevering(BaseModel):
 # Array [ 3 ]
 
 
-class OpgelijsteAanleveringResultaat:
+class OpgelijsteAanleveringResultaat(BaseModel):
     aanlevering: OpgelijsteAanlevering
 
 
