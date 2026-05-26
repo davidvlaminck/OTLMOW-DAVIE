@@ -1,14 +1,11 @@
 import json
-from typing import Union
-
 from requests import Response
+from otlmow_davie import AbstractRequester
 
-from otlmow_davie.CertRequester import CertRequester
-from otlmow_davie.JWTRequester import JWTRequester
 
 
 class RequestHandler:
-    def __init__(self, requester: Union[CertRequester, JWTRequester]):
+    def __init__(self, requester: AbstractRequester):
         self.requester = requester
 
     def get_jsondict(self, url):

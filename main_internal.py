@@ -11,7 +11,7 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S')
 
     settings_path = Path('/home/davidlinux/Documenten/AWV/resources/settings_TypeTemplateProcessor.json')
-    rest_client = DavieInternalRestClient(settings_path=settings_path, auth_type=AuthType.COOKIE,
+    rest_client = DavieInternalRestClient(settings_path=settings_path, auth_type=AuthType.JWT,
                                                   env=Environment.PRD, use_services=False, cookie='')
 
     zoek_dict = {

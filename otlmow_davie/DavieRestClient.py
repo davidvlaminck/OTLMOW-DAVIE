@@ -30,12 +30,12 @@ class DavieRestClient:
         if response.status_code != 200:
             logging.debug(response)
             raise ProcessLookupError(response.content.decode("utf-8"))
-        resultaat = AanleveringResultaat.parse_raw(response.text)
+        resultaat = AanleveringResultaat.model_validate_json(response.text)
         logging.debug(f"aanlevering succesvol aangemaakt, id is {resultaat.aanlevering.id}")
         return resultaat.aanlevering
 
     def create_aanvraag_as_is(self, aanlevering_id: str, as_is_aanvraag_create: AsIsAanvraagCreatie) -> AsIsAanvraag:
-        as_is_aanvraag_create_json = as_is_aanvraag_create.json()
+        as_is_aanvraag_create_json = as_is_aanvraag_create.model_dump_json()
         response = self.request_handler.perform_post_request(
             url=f'aanleveringen/{aanlevering_id}/asisaanvragen', data=as_is_aanvraag_create_json)
 
@@ -43,7 +43,7 @@ class DavieRestClient:
             logging.debug(response)
             raise ValueError(f'Could not create as_aanvraag in aanlevering {aanlevering_id}.')
 
-        resultaat = AsIsAanvraagResultaat.parse_raw(response.text)
+        resultaat = AsIsAanvraagResultaat.model_validate_json(response.text)
         logging.debug(f"as_is_aanvraag succesvol aangemaakt, id is {resultaat.asisAanvraag.id}")
         return resultaat.asisAanvraag
 

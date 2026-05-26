@@ -2,8 +2,7 @@ import logging
 from pathlib import Path
 
 from otlmow_davie.DavieClient import DavieClient
-from otlmow_davie.DavieDomain import AanleveringCreatieMedewerker
-from otlmow_davie.Enums import AuthenticationType, Environment, ExportType
+from otlmow_davie.Enums import AuthType, Environment, ExportType
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -11,15 +10,15 @@ if __name__ == '__main__':
         level=logging.INFO,
         datefmt='%Y-%m-%d %H:%M:%S')
 
-    settings_path = Path('/home/davidlinux/Documents/AWV/resources/settings_TypeTemplateProcessor.json')
+    settings_path = Path('/home/davidlinux/Documenten/AWV/resources/settings_SyncOTLDataToLegacy.json')
     davie_client = DavieClient(settings_path=settings_path,
-                               auth_type=AuthenticationType.JWT,
-                               environment=Environment.tei)
+                               auth_type=AuthType.JWT,
+                               environment=Environment.DEV)
 
-    nieuwe_aanlevering = AanleveringCreatieMedewerker(
-        niveau = 'LOG-1',
-        referentie = 'b2b integratie test 1',
-        verificatorId = '6c2b7c0a-11a9-443a-a96b-a1bec249c629')
+    # nieuwe_aanlevering = AanleveringCreatieMedewerker(
+    #     niveau = 'LOG-1',
+    #     referentie = 'b2b integratie test 1',
+    #     verificatorId = '6c2b7c0a-11a9-443a-a96b-a1bec249c629')
 
     aanlevering = davie_client.create_aanlevering_employee(verificatorId='6c2b7c0a-11a9-443a-a96b-a1bec249c629',
                                                            niveau='LOG-1', referentie='demo otlmow-davie')
@@ -34,5 +33,6 @@ if __name__ == '__main__':
     davie_client.wait_and_download_as_is_result(aanlevering_id=aanlevering.id)
 
     davie_client.upload_file(id=aanlevering.id,
-                             file_path=Path('type_template_1_mast.json'))
+                             file_path=Path('DA-2025-02128_export.geojson'))
+
     davie_client.finalize_and_wait(id=aanlevering.id)
