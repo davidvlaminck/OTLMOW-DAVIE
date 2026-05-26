@@ -9,7 +9,8 @@ from otlmow_davie.RequestHandler import RequestHandler
 class DavieRestClient:
     def __init__(self, request_handler: RequestHandler):
         self.request_handler = request_handler
-        self.pagingcursor = ''
+        self.request_handler.requester.first_part_url += 'davie-aanlevering/api/'
+        self.paging_cursor = ''
 
     def get_aanlevering(self, id: str) -> Aanlevering:
         response = self.request_handler.perform_get_request(
@@ -50,7 +51,7 @@ class DavieRestClient:
     def upload_file(self, id: str, file_path: Path) -> AanleveringBestandResultaat:
         with open(file_path, "rb") as data:
             response = self.request_handler.perform_post_request(
-                url=f'aanleveringen/{id}/bestanden',
+                url=f'aanleveringen/{id}/bestanden/binary',
                 params={"bestandsnaam": file_path.name},
                 data=data)
             if response.status_code == 404:
@@ -59,8 +60,8 @@ class DavieRestClient:
             elif response.status_code != 200:
                 logging.debug(response)
                 raise ProcessLookupError(response.content.decode("utf-8"))
-            resultaat = AanleveringBestandResultaat.parse_raw(response.text)
-            print(resultaat.json())
+            resultaat = AanleveringBestandResultaat.model_validate_json(response.text)
+            print(resultaat.model_dump_json())
             logging.debug(f"Uploaded file {file_path} to aanlevering {id}")
             return resultaat
 
