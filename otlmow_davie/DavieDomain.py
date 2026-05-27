@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Optional
 
-from pydantic import Field, conlist
+from pydantic import Field
 from pydantic import BaseModel as PydanticBaseModel
 
 from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus, MethodEnum, ExportType, LevelOfGeometry
@@ -84,6 +84,15 @@ class AanleveringHateoasLinks(BaseModel):
     validatiefouten: Optional[HateoasLink] = None
     verificatierapport: Optional[HateoasLink] = None
 
+
+class AanleveringHistoriekItem(BaseModel):
+    """Een historiek lijn van een aanlevering."""
+    tijdstip: str
+    volledigeNaam: str
+    omschrijving: Optional[str] = None
+    status: AanleveringStatus
+    substatus: Optional[AanleveringSubstatus] = None
+    links: dict[str, object]
 
 class AanleveringResultaat(BaseModel):
     """Een aanlevering met zijn links. Deze links geven aan welke acties mogelijk zijn op de aanlevering. Als een

@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Optional
 
 from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker, \
-    AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer, AanleveringCreatieControlefiche
+    AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer, AanleveringCreatieControlefiche, \
+    AanleveringHistoriekItem
 from otlmow_davie.DavieRestClient import DavieRestClient
 from otlmow_davie.Enums import Environment, AuthType, AanleveringStatus, AanleveringSubstatus, \
     LevelOfGeometry, ExportType
@@ -18,11 +19,12 @@ this_directory = Path(__file__).parent
 
 class DavieClient:
     def __init__(self, settings_path: Path, auth_type: AuthType, environment: Environment,
-                 shelve_path: Path = Path(this_directory / 'shelve')):
+                 shelve_path: Path = Path(this_directory / 'shelve'), use_services: bool = True,
+                 api_prefix: str = ''):
         requester = RequesterFactory.create_requester(settings_path=settings_path, auth_type=auth_type,
-                                                      env=environment)
+                                                      env=environment, use_services=use_services)
         request_handler = RequestHandler(requester=requester)
-        self.rest_client = DavieRestClient(request_handler=request_handler)
+        self.rest_client = DavieRestClient(request_handler=request_handler, api_prefix=api_prefix)
         if not Path.is_file(shelve_path):
             try:
                 import dbm.ndbm
@@ -164,3 +166,9 @@ class DavieClient:
             time.sleep(interval)
 
         return True
+
+    def list_files(self, id: str):
+        return self.rest_client.list_files(id=id)
+
+    def get_historiek(self, aanlevering_id: str) -> list[AanleveringHistoriekItem]:
+        return self.rest_client.get_historiek(id=aanlevering_id)
