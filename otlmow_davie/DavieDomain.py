@@ -1,47 +1,32 @@
 from abc import ABC
-from typing import Optional
+from typing import Optional, Union
 
-from pydantic import Field
+from pydantic import AliasChoices, ConfigDict, Field
 from pydantic import BaseModel as PydanticBaseModel
 
-from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus, MethodEnum, ExportType, LevelOfGeometry
+from otlmow_davie.Enums import AanleveringStatus, AanleveringSubstatus, ExportType, LevelOfGeometry as LevelOfGeometryEnum, MethodEnum
 
 
 class BaseModel(PydanticBaseModel):
-    class Config:
-        arbitrary_types_allowed = True
+    # The API evolves frequently; allow unknown fields so parsing remains resilient.
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow', populate_by_name=True)
 
 
 class OpgelijsteAanlevering(BaseModel):
     id: str
-    isStudie: bool
-    aanleveringnummer: str
-    aanvrager: str
-    referentie: str
-
+    isStudie: Optional[bool] = None
+    aanleveringnummer: Optional[str] = None
+    aanvrager: Optional[str] = None
+    referentie: Optional[str] = None
     dossierNummer: Optional[str] = None
     besteknummer: Optional[str] = None
     dienstbevelnummer: Optional[str] = None
-# Het dienstbevelnummer van de aanlevering
-# aanmaakDatum*	string($date-time)
-# De datum waarop de aanlevering aangemaakt werd
-# vervalOfEinddatum*	string($date)
-# De vervaldatum van de aanlevering (indien de aanlevering nog niet in een eindstatus zit), of de einddatum (indien de aanlevering in een eindstatus zit)
-# status*	string
-# Status van de aanlevering
-# Enum:
-# Array [ 5 ]
-# substatus	string
-# Substatus van de aanlevering
-# Enum:
-# Array [ 6 ]
-# omschrijving	string
-# example: Het bestand werd opgeladen
-# Een omschrijving van de laatste status wijziging
-# type*	string
-# Het type van de aanlevering
-# Enum:
-# Array [ 3 ]
+    aanmaakDatum: Optional[str] = None
+    vervalOfEinddatum: Optional[str] = None
+    status: Optional[AanleveringStatus] = None
+    substatus: Optional[AanleveringSubstatus] = None
+    omschrijving: Optional[str] = None
+    type: Optional[str] = None
 
 
 class OpgelijsteAanleveringResultaat(BaseModel):
@@ -50,18 +35,47 @@ class OpgelijsteAanleveringResultaat(BaseModel):
 
 class PagedOpgelijsteAanleveringResultaat(BaseModel):
     data: list[OpgelijsteAanleveringResultaat]
-    #links: PagedLinks
     from_: int = Field(..., alias='from')
     total: int
     size: int
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class ApiError(BaseModel):
+    message: str
+    detail: Optional[str] = None
+
+
+class OndernemingInfo(BaseModel):
+    ondernemingsnummer: Optional[str] = None
+    naam: Optional[str] = None
+
+
+class AanleveringInfo(BaseModel):
+    dossiernummer: Optional[str] = None
+    besteknummer: Optional[str] = None
+    bestekOmschrijving: Optional[str] = None
+    dienstbevelId: Optional[str] = None
+    dienstbevelOmschrijving: Optional[str] = None
+    ondernemingInfo: Optional[OndernemingInfo] = None
 
 
 class Aanlevering(BaseModel):
-    """Groepeert alle informatie van een aanlevering"""
     id: str
-    nummer: str
-    status: AanleveringStatus
+    nummer: Optional[str] = Field(default=None, validation_alias=AliasChoices('nummer', 'aanleveringnummer'))
+    status: Optional[AanleveringStatus] = None
     substatus: Optional[AanleveringSubstatus] = None
+    aanvrager: Optional[dict[str, object]] = None
+    ondernemingsnummer: Optional[str] = None
+    info: Optional[AanleveringInfo] = None
+    vervalOfEinddatum: Optional[str] = None
+    aangemaaktOp: Optional[str] = None
+    aangemaaktDoor: Optional[dict[str, object]] = None
+    gewijzigdOp: Optional[str] = None
+    gewijzigdDoor: Optional[dict[str, object]] = None
+    type: Optional[str] = None
+    oorsprong: Optional[str] = None
+    version: Optional[str] = None
 
 
 class HateoasLink(BaseModel):
@@ -70,9 +84,8 @@ class HateoasLink(BaseModel):
 
 
 class AanleveringHateoasLinks(BaseModel):
-    """de HATEOAS links die van toepassing zijn op een aanlevering. Deze links geven aan welke acties mogelijk zijn
-    op de aanlevering. Als een link ontbreekt op een aanlevering dan betekent dit dat de corresponderende actie niet
-    mogelijk is op de aanlevering. """
+    bijlageopladen: Optional[HateoasLink] = None
+    hoofdbestandopladen: Optional[HateoasLink] = None
     doorstromingfouten: Optional[HateoasLink] = None
     doorstromingidmapping: Optional[HateoasLink] = None
     doorstromingstatistieken: Optional[HateoasLink] = None
@@ -80,29 +93,30 @@ class AanleveringHateoasLinks(BaseModel):
     exportaanvraagfouten: Optional[HateoasLink] = None
     finaliseren: Optional[HateoasLink] = None
     genegeerdedata: Optional[HateoasLink] = None
-    self: HateoasLink
+    self: Optional[HateoasLink] = None
     validatiefouten: Optional[HateoasLink] = None
     verificatierapport: Optional[HateoasLink] = None
 
 
 class AanleveringHistoriekItem(BaseModel):
-    """Een historiek lijn van een aanlevering."""
     tijdstip: str
     volledigeNaam: str
     omschrijving: Optional[str] = None
-    status: AanleveringStatus
+    status: Optional[AanleveringStatus] = None
     substatus: Optional[AanleveringSubstatus] = None
-    links: dict[str, object]
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class PagedAanleveringHistoriekResultaat(BaseModel):
+    data: list[AanleveringHistoriekItem]
+    from_: int = Field(..., alias='from')
+    total: int
+    size: int
+    links: dict[str, object] = Field(default_factory=dict)
 
 class AanleveringResultaat(BaseModel):
-    """Een aanlevering met zijn links. Deze links geven aan welke acties mogelijk zijn op de aanlevering. Als een
-    link ontbreekt op een aanlevering dan betekent dit dat de corresponderende actie niet mogelijk is op de
-    aanlevering. """
     aanlevering: Aanlevering
     links: AanleveringHateoasLinks
-
-    class Config:
-        use_enum_values = True
 
 
 class AanleveringCreatie(BaseModel, ABC):
@@ -110,8 +124,6 @@ class AanleveringCreatie(BaseModel, ABC):
 
 
 class AanleveringCreatieMedewerker(AanleveringCreatie):
-    """Capteert alle informatie rond het aanmaken van een aanlevering voor AWV medewerker via een rechtstreekse (B2B)
-    integratie met de davie-core REST API. """
     verificatorId: str
     besteknummer: Optional[str] = None
     bestekomschrijving: Optional[str] = None
@@ -125,8 +137,6 @@ class AanleveringCreatieMedewerker(AanleveringCreatie):
 
 
 class AanleveringCreatieOpdrachtnemer(AanleveringCreatie):
-    """Capteert alle informatie rond het aanmaken van een aanlevering voor een opdrachtnemer via een rechtstreekse
-    (B2B) integratie met de davie-core REST API. """
     ondernemingsnummer: str
     besteknummer: str
     dienstbevelnummer: Optional[str] = None
@@ -137,8 +147,6 @@ class AanleveringCreatieOpdrachtnemer(AanleveringCreatie):
 
 
 class AanleveringCreatieControlefiche(AanleveringCreatie):
-    """Capteert alle informatie rond het aanmaken van een aanlevering voor een of meerdere controlefiches via een
-    rechtstreekse (B2B) integratie met de davie-core REST API."""
     ondernemingsnummer: Optional[str] = None
     besteknummer: Optional[str] = None
     dienstbevelnummer: Optional[str] = None
@@ -148,47 +156,119 @@ class AanleveringCreatieControlefiche(AanleveringCreatie):
 
 
 class AanleveringBestand(BaseModel):
-    """Groepeert alle informatie van een bestand"""
     id: str
-    aanleveringId: str
+    aanleveringId: Optional[str] = None
+    argusId: Optional[str] = None
+    bestandsnaam: Optional[str] = None
+    aangemaaktOp: Optional[str] = None
+    aangemaaktDoor: Optional[dict[str, object]] = None
+    grootte: Optional[str] = None
+    bestandMetadata: dict[str, object] = Field(default_factory=dict)
+    version: Optional[str] = None
+    artefactId: Optional[str] = None
 
 
 class AanleveringBestandHateoasLinks(BaseModel):
-    """de HATEOAS links die van toepassing zijn op een bestand. Deze links geven aan welke acties mogelijk zijn op
-    het bestand. Als een link ontbreekt op een bestand dan betekent dit dat de corresponderende actie niet mogelijk
-    is op het bestand. """
-    self: HateoasLink
+    self: Optional[HateoasLink] = None
 
 
 class AanleveringBestandResultaat(BaseModel):
-    """
-    Een bestand met zijn links. Deze links geven aan welke acties mogelijk zijn op het bestand. Als een link
-    ontbreekt op een bestand dan betekent dit dat de corresponderende actie niet mogelijk is op het bestand. """
     bestand: AanleveringBestand
     links: AanleveringBestandHateoasLinks
 
 
+class PagedAanleveringBestandResultaat(BaseModel):
+    data: list[AanleveringBestandResultaat]
+    from_: int = Field(..., alias='from')
+    total: int
+    size: int
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class AsIsAssetType(BaseModel):
+    typeURI: str
+    includeRelaties: Optional[bool] = None
+
+
+class XlsxExportOptions(BaseModel):
+    includeAfgeleideWeglocatie: Optional[bool] = None
+    includePuntlocaties: Optional[bool] = None
+    includeGeometrieInfo: Optional[bool] = None
+    includeRelatieInfo: Optional[bool] = None
+
+
 class AsIsAanvraagCreatie(BaseModel):
-    """Capteert alle informatie rond het aanmaken van een asis aanvraag voor een aanlevering."""
     geometrie: Optional[str] = None
     exportType: ExportType
-    assetTypes: list[str]
-    levelOfGeometry: LevelOfGeometry = LevelOfGeometry.ALLES
+    assetTypes: list[Union[str, AsIsAssetType]]
+    levelOfGeometry: LevelOfGeometryEnum = LevelOfGeometryEnum.ALLES
     emailAdres: Optional[str] = None
+    xlsxExportOptions: Optional[XlsxExportOptions] = None
 
 
 class AsIsAanvraagHateoasLinks(BaseModel):
-    """De HATEOAS links die van toepassing zijn op een asis aanvraag."""
     self: Optional[HateoasLink]
 
 
 class AsIsAanvraag(BaseModel):
-    """Groepeert alle informatie van een asis aanvraag van een aanlevering"""
     id: str
     aanleveringId: str
+    exportType: Optional[ExportType] = None
+    status: Optional[str] = None
+    oorsprong: Optional[str] = None
+    version: Optional[str] = None
 
 
 class AsIsAanvraagResultaat(BaseModel):
-    """Een asis aanvraag met zijn links """
     asisAanvraag: AsIsAanvraag
-    links: dict
+    links: dict[str, HateoasLink] = Field(default_factory=dict)
+
+
+class PagedAsIsAanvraagResultaat(BaseModel):
+    data: list[AsIsAanvraagResultaat]
+    from_: int = Field(..., alias='from')
+    total: int
+    size: int
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class LosseValidatie(BaseModel):
+    id: str
+    nummer: Optional[str] = None
+    status: Optional[str] = None
+    substatus: Optional[str] = None
+    type: Optional[str] = None
+    oorsprong: Optional[str] = None
+    version: Optional[str] = None
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class LosseValidatieResultaat(BaseModel):
+    losseValidatie: LosseValidatie
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class LosseValidatieBestand(BaseModel):
+    id: str
+    argusId: Optional[str] = None
+    bestandsnaam: Optional[str] = None
+    aangemaaktOp: Optional[str] = None
+    aangemaaktDoor: Optional[dict[str, object]] = None
+    grootte: Optional[str] = None
+    bestandMetadata: dict[str, object] = Field(default_factory=dict)
+    version: Optional[str] = None
+    artefactId: Optional[str] = None
+
+
+class LosseValidatieBestandResultaat(BaseModel):
+    bestand: LosseValidatieBestand
+    links: dict[str, object] = Field(default_factory=dict)
+
+
+class PagedLosseValidatieBestandResultaat(BaseModel):
+    data: list[LosseValidatieBestandResultaat]
+    from_: int = Field(..., alias='from')
+    total: int
+    size: int
+    links: dict[str, object] = Field(default_factory=dict)
+

@@ -1,6 +1,6 @@
 import json
 from requests import Response
-from otlmow_davie import AbstractRequester
+from otlmow_davie.AbstractRequester import AbstractRequester
 
 
 
@@ -14,8 +14,8 @@ class RequestHandler:
         dict_obj = json.loads(decoded_string)
         return dict_obj
 
-    def perform_get_request(self, url: str) -> Response:
-        return self.requester.get(url=url)
+    def perform_get_request(self, url: str, **kwargs) -> Response:
+        return self.requester.get(url=url, **kwargs)
 
     def perform_post_request(self, url: str, json_data=None, **kwargs) -> Response:
         if json_data is not None:

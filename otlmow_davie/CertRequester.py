@@ -53,6 +53,6 @@ class CertRequester(AbstractRequester):
                         if headers["accept"] != ''
                         else "application/json"
                     )
-                headers['Content-Type'] = 'application/vnd.awv.eminfra.v1+json'
+                headers['Content-Type'] = 'application/vnd.davie.v1+json'
                 kwargs['headers'] = headers
         return kwargs

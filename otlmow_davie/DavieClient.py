@@ -7,7 +7,7 @@ from typing import Optional
 
 from otlmow_davie.DavieDomain import AanleveringCreatie, Aanlevering, AanleveringCreatieMedewerker, \
     AsIsAanvraagCreatie, AsIsAanvraag, AanleveringCreatieOpdrachtnemer, AanleveringCreatieControlefiche, \
-    AanleveringHistoriekItem
+    LosseValidatie, LosseValidatieBestandResultaat
 from otlmow_davie.DavieRestClient import DavieRestClient
 from otlmow_davie.Enums import Environment, AuthType, AanleveringStatus, AanleveringSubstatus, \
     LevelOfGeometry, ExportType
@@ -36,9 +36,13 @@ class DavieClient:
 
         self.shelve_path = shelve_path
 
-    def create_aanlevering_employee(self, niveau: str, referentie: str, verificatorId: str, besteknummer: str = None,
-                                    bestekomschrijving: str = None, dienstbevelnummer: str = None,
-                                    dienstbevelomschrijving: str = None, dossiernummer: str = None, nota: str = None
+    def create_aanlevering_employee(self, niveau: str, referentie: str, verificatorId: str,
+                                    besteknummer: Optional[str] = None,
+                                    bestekomschrijving: Optional[str] = None,
+                                    dienstbevelnummer: Optional[str] = None,
+                                    dienstbevelomschrijving: Optional[str] = None,
+                                    dossiernummer: Optional[str] = None,
+                                    nota: Optional[str] = None
                                     ) -> Aanlevering:
         nieuwe_aanlevering = AanleveringCreatieMedewerker(
             niveau=niveau, referentie=referentie, verificatorId=verificatorId, besteknummer=besteknummer,
@@ -46,29 +50,32 @@ class DavieClient:
             dienstbevelomschrijving=dienstbevelomschrijving, dossiernummer=dossiernummer, nota=nota)
         return self._create_aanlevering(nieuwe_aanlevering)
 
-    def create_aanlevering_controlefiche(self, niveau: str, referentie: str, verificatorId: str, besteknummer: str = None,
-                                    bestekomschrijving: str = None, dienstbevelnummer: str = None,
-                                    dienstbevelomschrijving: str = None, dossiernummer: str = None
+    def create_aanlevering_controlefiche(self, referentie: str,
+                                         ondernemingsnummer: Optional[str] = None,
+                                         besteknummer: Optional[str] = None,
+                                         dienstbevelnummer: Optional[str] = None,
+                                         dossiernummer: Optional[str] = None,
                                     ) -> Aanlevering:
         nieuwe_aanlevering = AanleveringCreatieControlefiche(
-            niveau=niveau, referentie=referentie, verificatorId=verificatorId, besteknummer=besteknummer,
-            bestekomschrijving=bestekomschrijving, dienstbevelnummer=dienstbevelnummer,
-            dienstbevelomschrijving=dienstbevelomschrijving, dossiernummer=dossiernummer)
+            referentie=referentie, ondernemingsnummer=ondernemingsnummer, besteknummer=besteknummer,
+            dienstbevelnummer=dienstbevelnummer, dossiernummer=dossiernummer)
         return self._create_aanlevering(nieuwe_aanlevering)
 
     def create_aanlevering(self, ondernemingsnummer: str, besteknummer: str, dossiernummer: str,
-                           referentie: str, dienstbevelnummer: str = None, nota: str = None) -> Aanlevering:
+                           referentie: str, dienstbevelnummer: Optional[str] = None,
+                           nota: Optional[str] = None) -> Aanlevering:
         nieuwe_aanlevering = AanleveringCreatieOpdrachtnemer(
             ondernemingsnummer=ondernemingsnummer, besteknummer=besteknummer, dossiernummer=dossiernummer,
             referentie=referentie, dienstbevelnummer=dienstbevelnummer, nota=nota)
         return self._create_aanlevering(nieuwe_aanlevering)
 
-    def create_aanvraag_as_is(self, aanlevering_id: str, asset_types: [str],
+    def create_aanvraag_as_is(self, aanlevering_id: str, asset_types: list[str],
                               l_o_g: LevelOfGeometry = LevelOfGeometry.ALLES,
-                              email: str = None, geometrie: str = None,
-                              export_type: str = ExportType.XLSX) -> AsIsAanvraag:
-        as_is_aanvraag_create = AsIsAanvraagCreatie(assetTypes=asset_types, levelOfGeometry=l_o_g, email=email,
-                                                    geometrie=geometrie, exportType=export_type)
+                              email: Optional[str] = None, geometrie: Optional[str] = None,
+                              export_type: ExportType = ExportType.XLSX) -> AsIsAanvraag:
+        as_is_aanvraag_create = AsIsAanvraagCreatie(assetTypes=asset_types, levelOfGeometry=l_o_g,
+                                                    emailAdres=email, geometrie=geometrie,
+                                                    exportType=export_type)
         as_is_aanvraag = self.rest_client.create_aanvraag_as_is(aanlevering_id, as_is_aanvraag_create)
         self._track_as_is_aanvraag(aanlevering_id, export_type)
         return as_is_aanvraag
@@ -85,12 +92,12 @@ class DavieClient:
     def get_aanlevering(self, id: str) -> Aanlevering:
         return self.rest_client.get_aanlevering(id=id)
 
-    def _save_to_shelve(self, id: Optional[str], status: Optional[AanleveringStatus] = None,
+    def _save_to_shelve(self, id: str, status: Optional[AanleveringStatus] = None,
                         nummer: Optional[str] = None, substatus: Optional[AanleveringSubstatus] = None,
                         as_is_aanvraag: Optional[str] = None, ) -> None:
         with shelve.open(str(self.shelve_path), writeback=True) as db:
             if id not in db.keys():
-                db[id] = {'created': datetime.datetime.utcnow()}
+                db[id] = {'created': datetime.datetime.now(datetime.UTC)}
             if nummer is not None:
                 db[id]['nummer'] = nummer
             if status is not None:
@@ -100,9 +107,15 @@ class DavieClient:
             if as_is_aanvraag is not None:
                 db[id]['as_is_aanvraag'] = as_is_aanvraag
             # auto prune
-            for id in db.keys():
-                if db[id]['created'] + datetime.timedelta(days=1) < datetime.datetime.utcnow():
-                    del db[id]
+            now_utc = datetime.datetime.now(datetime.UTC)
+            for key in list(db.keys()):
+                created = db[key].get('created')
+                if created is None:
+                    continue
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=datetime.UTC)
+                if created + datetime.timedelta(days=1) < now_utc:
+                    del db[key]
 
             self.db = dict(db)
 
@@ -122,7 +135,8 @@ class DavieClient:
             raise FileExistsError(f'file does not exist: {file_path}')
         self.rest_client.upload_file(id=id, file_path=file_path)
 
-    def wait_and_download_as_is_result(self, aanlevering_id: str, interval: int = 10, dir_path: Path = None) -> bool:
+    def wait_and_download_as_is_result(self, aanlevering_id: str, interval: int = 10,
+                                       dir_path: Optional[Path] = None) -> bool:
         if dir_path is None:
             dir_path = pathlib.Path(__file__).parent
         while True:
@@ -148,11 +162,9 @@ class DavieClient:
 
     def finalize_and_wait(self, id: str, interval: int = 10) -> bool:
         self.track_aanlevering_by_id(id)
-        if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id][
-            'substatus'] == AanleveringSubstatus.AANGEBODEN:
+        if self.db[id]['status'] == AanleveringStatus.DATA_AANGELEVERD and self.db[id]['substatus'] == AanleveringSubstatus.AANGEBODEN:
             return True
-        if self.db[id]['status'] != AanleveringStatus.DATA_AANGELEVERD and self.db[id][
-            'status'] != AanleveringStatus.IN_OPMAAK:
+        if self.db[id]['status'] not in {AanleveringStatus.DATA_AANGELEVERD, AanleveringStatus.IN_OPMAAK}:
             raise RuntimeError(f"{id} has status {self.db[id]['status']} instead of IN_OPMAAK / DATA_AANGELEVERD")
 
         if AanleveringStatus.IN_OPMAAK:
@@ -167,8 +179,41 @@ class DavieClient:
 
         return True
 
-    def list_files(self, id: str):
-        return self.rest_client.list_files(id=id)
+    def delete_file(self, aanlevering_id: str, bestand_id: str) -> None:
+        self.rest_client.delete_file(aanlevering_id=aanlevering_id, bestand_id=bestand_id)
 
-    def get_historiek(self, aanlevering_id: str) -> list[AanleveringHistoriekItem]:
-        return self.rest_client.get_historiek(id=aanlevering_id)
+    def download_as_is_errors(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_as_is_errors(aanlevering_id=aanlevering_id, file_name=file_name, dir_path=dir_path)
+
+    def download_doorstromingfouten(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_doorstromingfouten(aanlevering_id=aanlevering_id, file_name=file_name, dir_path=dir_path)
+
+    def download_doorstroming_id_mapping(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_doorstroming_id_mapping(
+            aanlevering_id=aanlevering_id,
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_doorstroming_statistieken(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_doorstroming_statistieken(
+            aanlevering_id=aanlevering_id,
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_genegeerde_data(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_genegeerde_data(aanlevering_id=aanlevering_id, file_name=file_name, dir_path=dir_path)
+
+    def download_validatiefouten(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_validatiefouten(aanlevering_id=aanlevering_id, file_name=file_name, dir_path=dir_path)
+
+    def download_verificatierapport(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self.rest_client.download_verificatierapport(aanlevering_id=aanlevering_id, file_name=file_name, dir_path=dir_path)
+
+    def get_losse_validatie(self, id: str) -> LosseValidatie:
+        return self.rest_client.get_losse_validatie(id=id)
+
+    def list_losse_validatie_bestanden(self, id: str, from_: int = 0, size: int = 100) -> list[LosseValidatieBestandResultaat]:
+        return self.rest_client.list_losse_validatie_bestanden(id=id, from_=from_, size=size)
+

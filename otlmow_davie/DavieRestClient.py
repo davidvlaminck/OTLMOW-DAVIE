@@ -1,13 +1,16 @@
 import logging
 from pathlib import Path
+from typing import Optional
 
 from otlmow_davie.DavieDomain import AanleveringCreatie, AanleveringResultaat, Aanlevering, AanleveringBestandResultaat, \
-    AsIsAanvraagResultaat, AsIsAanvraagCreatie, AsIsAanvraag, AanleveringHistoriekItem
+    AsIsAanvraagResultaat, AsIsAanvraagCreatie, AsIsAanvraag, LosseValidatieResultaat, LosseValidatie, \
+    LosseValidatieBestandResultaat, PagedLosseValidatieBestandResultaat
 from otlmow_davie.RequestHandler import RequestHandler
 
 
 class DavieRestClient:
     def __init__(self, request_handler: RequestHandler, api_prefix: str = ''):
+        """Implementeert van https://apps.mow.vlaanderen.be/applicatiedocumentatie/davie-core/b2b/swagger/index.html"""
         self.request_handler = request_handler
         self.paging_cursor = ''
         self._apply_api_prefix(api_prefix)
@@ -29,12 +32,46 @@ class DavieRestClient:
         self.request_handler.requester.first_part_url = current_base_url + prefix_with_trailing_slash
 
     @staticmethod
-    def _extract_data_items(payload, endpoint: str) -> list[dict]:
+    def _parse_paged_or_list(payload, paged_model, item_model, endpoint: str):
+        if isinstance(payload, dict):
+            return paged_model.model_validate(payload).data
         if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict) and isinstance(payload.get('data'), list):
-            return payload['data']
+            return [item_model.model_validate(item) for item in payload]
         raise ValueError(f'Unexpected payload for {endpoint}: expected a list or an object with a data list.')
+
+    @staticmethod
+    def _perform_get_json_request(request_handler: RequestHandler, url: str, not_found_message: str, **kwargs):
+        response = request_handler.perform_get_request(url=url, **kwargs)
+        if response.status_code == 404:
+            logging.debug(response)
+            raise ValueError(not_found_message)
+        if response.status_code != 200:
+            logging.debug(response)
+            raise ProcessLookupError(response.content.decode("utf-8"))
+        return response.json()
+
+    @staticmethod
+    def _perform_get_binary_request(request_handler: RequestHandler, url: str, not_found_message: str, failure_message: str):
+        response = request_handler.perform_get_request(url=url)
+        if response.status_code == 404:
+            logging.debug(response)
+            raise ValueError(not_found_message)
+        if response.status_code != 200:
+            logging.debug(response)
+            raise ProcessLookupError(failure_message + '\n' + response.content.decode("utf-8"))
+        return response.content
+
+    @staticmethod
+    def _download_to_file(request_handler: RequestHandler, url: str, not_found_message: str,
+                          failure_message: str, file_name: str, dir_path: Path) -> None:
+        content = DavieRestClient._perform_get_binary_request(
+            request_handler=request_handler,
+            url=url,
+            not_found_message=not_found_message,
+            failure_message=failure_message,
+        )
+        with open(dir_path / file_name, 'wb') as f:
+            f.write(content)
 
     def get_aanlevering(self, id: str) -> Aanlevering:
         response = self.request_handler.perform_get_request(
@@ -72,39 +109,39 @@ class DavieRestClient:
         logging.debug(f"as_is_aanvraag succesvol aangemaakt, id is {resultaat.asisAanvraag.id}")
         return resultaat.asisAanvraag
 
-    def get_historiek(self, id: str) -> list[AanleveringHistoriekItem]:
-        response = self.request_handler.perform_get_request(
-            url=f'aanleveringen/{id}/historiek')
+    def get_losse_validatie(self, id: str) -> LosseValidatie:
+        response = self.request_handler.perform_get_request(url=f'lossevalidaties/{id}')
         if response.status_code == 404:
             logging.debug(response)
-            raise ValueError(f'Could not find aanlevering {id}.')
-        elif response.status_code != 200:
+            raise ValueError(f'Could not find lossevalidatie {id}.')
+        if response.status_code != 200:
             logging.debug(response)
             raise ProcessLookupError(response.content.decode("utf-8"))
-        historiek_items = self._extract_data_items(response.json(), endpoint='historiek')
-        return [AanleveringHistoriekItem.model_validate(item) for item in historiek_items]
+        return LosseValidatieResultaat.model_validate_json(response.text).losseValidatie
 
-    def list_files(self, id: str) -> list[AanleveringBestandResultaat]:
-        response = self.request_handler.perform_get_request(
-            url=f'aanleveringen/{id}/bestanden')
-        if response.status_code == 404:
-            logging.debug(response)
-            raise ValueError(f'Could not find aanlevering {id}.')
-        elif response.status_code != 200:
-            logging.debug(response)
-            raise ProcessLookupError(response.content.decode("utf-8"))
-        file_items = self._extract_data_items(response.json(), endpoint='bestanden')
-        return [AanleveringBestandResultaat.model_validate(item) for item in file_items]
+    def list_losse_validatie_bestanden(self, id: str, from_: int = 0, size: int = 100) -> list[LosseValidatieBestandResultaat]:
+        bestand_payload = self._perform_get_json_request(
+            self.request_handler, url=f'lossevalidaties/{id}/bestanden',
+            not_found_message=f'Could not find lossevalidatie {id}.', params={'from': from_, 'size': size})
+        return self._parse_paged_or_list(
+            payload=bestand_payload,
+            paged_model=PagedLosseValidatieBestandResultaat,
+            item_model=LosseValidatieBestandResultaat,
+            endpoint='lossevalidatie bestanden',
+        )
 
-    def upload_file(self, id: str, file_path: Path) -> AanleveringBestandResultaat:
+    def upload_file(self, id: str, file_path: Path) -> Optional[AanleveringBestandResultaat]:
         with open(file_path, "rb") as data:
             response = self.request_handler.perform_post_request(
-                url=f'aanleveringen/{id}/bestanden/binary',
+                url=f'aanleveringen/{id}/bestanden',
                 params={"bestandsnaam": file_path.name},
                 data=data)
             if response.status_code == 404:
                 logging.debug(response)
                 raise ValueError(f'Could not find aanlevering {id}.')
+            elif response.status_code == 204:
+                logging.debug(f'File chunk accepted for aanlevering {id}, waiting for remaining chunks.')
+                return None
             elif response.status_code != 200:
                 logging.debug(response)
                 raise ProcessLookupError(response.content.decode("utf-8"))
@@ -124,12 +161,93 @@ class DavieRestClient:
             raise ProcessLookupError(response.content.decode("utf-8"))
         logging.debug('finalize succeeded')
 
-    def download_as_is_result(self, aanlevering_id, file_name: str, dir_path: Path) -> None:
-        response = self.request_handler.perform_get_request(
-            url=f'aanleveringen/{aanlevering_id}/asisaanvragen/export')
-        if response.status_code != 200:
+    def delete_file(self, aanlevering_id: str, bestand_id: str) -> None:
+        response = self.request_handler.perform_delete_request(
+            url=f'aanleveringen/{aanlevering_id}/bestanden/{bestand_id}')
+        if response.status_code == 404:
             logging.debug(response)
-            raise ValueError(f'Could not download as is aanvraag in {aanlevering_id}.')
+            raise ValueError(f'Could not find aanlevering {aanlevering_id} or bestand {bestand_id}.')
+        if response.status_code != 204:
+            logging.debug(response)
+            raise ProcessLookupError(response.content.decode("utf-8"))
+        logging.debug(f'delete bestand succeeded for aanlevering {aanlevering_id}, bestand {bestand_id}')
 
-        with open(dir_path / file_name, 'wb') as f:
-            f.write(response.content)
+    def download_as_is_result(self, aanlevering_id, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/asisaanvragen/export',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download as is aanvraag in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_as_is_errors(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/asisaanvragen/fouten',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download as is errors in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_doorstromingfouten(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/doorstromingfouten',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download doorstromingfouten in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_doorstroming_id_mapping(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/doorstromingidmapping',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download doorstroming id mapping in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_doorstroming_statistieken(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/doorstromingsstatistieken',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download doorstromingsstatistieken in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_genegeerde_data(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/genegeerdedata',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download genegeerdedata in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_validatiefouten(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/validatiefouten',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download validatiefouten in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )
+
+    def download_verificatierapport(self, aanlevering_id: str, file_name: str, dir_path: Path) -> None:
+        self._download_to_file(
+            request_handler=self.request_handler,
+            url=f'aanleveringen/{aanlevering_id}/verificatierapport',
+            not_found_message=f'Could not find aanlevering {aanlevering_id}.',
+            failure_message=f'Could not download verificatierapport in {aanlevering_id}.',
+            file_name=file_name,
+            dir_path=dir_path,
+        )

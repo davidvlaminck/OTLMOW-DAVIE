@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 
 from otlmow_davie.DavieClient import DavieClient
-from otlmow_davie.Enums import AuthenticationType, Environment
+from otlmow_davie.Enums import AuthType, Environment
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -13,8 +13,8 @@ if __name__ == '__main__':
 
     settings_path = Path('/home/davidlinux/Documents/AWV/resources/settings_davie.json')
     davie_client = DavieClient(settings_path=settings_path,
-                               auth_type=AuthenticationType.JWT,
-                               environment=Environment.tei)
+                               auth_type=AuthType.JWT,
+                               environment=Environment.TEI)
 
     aanlevering = davie_client.create_aanlevering(ondernemingsnummer='0687738908', besteknummer='1M2D8F/19/42',
                                                   dossiernummer='X21/0/480', referentie='conversie test 1')
