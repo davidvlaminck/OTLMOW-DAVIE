@@ -146,7 +146,6 @@ class DavieRestClient:
                 logging.debug(response)
                 raise ProcessLookupError(response.content.decode("utf-8"))
             resultaat = AanleveringBestandResultaat.model_validate_json(response.text)
-            print(resultaat.model_dump_json())
             logging.debug(f"Uploaded file {file_path} to aanlevering {id}")
             return resultaat
 

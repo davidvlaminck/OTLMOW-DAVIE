@@ -1,0 +1,10 @@
+[
+    {
+        "toestand": "in-ontwerp",
+        "assetId": {
+            "identificator": "test"
+        },
+        "naam": "test",
+        "typeURI": "https://wegenenverkeer.data.vlaanderen.be/ns/onderdeel#Wegkantkast"
+    }
+]

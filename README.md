@@ -36,4 +36,4 @@ pip install otlmow_davie --upgrade
 ```
 
 ## Usage
-TODO
+Look at main_download.py and main_upload.py for example code
