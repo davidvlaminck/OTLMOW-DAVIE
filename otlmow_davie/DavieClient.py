@@ -50,19 +50,21 @@ _TERMINAL_STATUS = {
 _PRUNE_AFTER = datetime.timedelta(days=7)
 
 _CONSOLE = Console()
-_PINGPONG_WIDTH = 5
+_PROGRESS_BAR_WIDTH = 20
 
 
-def _pingpong_frame(step: int, width: int = _PINGPONG_WIDTH) -> str:
-    """Return a pingpong-ball frame moving left-to-right and back."""
-    if width <= 1:
-        return 'o'
+def _progress_bar(step: int, width: int = _PROGRESS_BAR_WIDTH) -> str:
+    """Return a uv-style progress bar with dashes.
 
-    cycle = (width * 2) - 2
-    pos = step % cycle
-    if pos >= width:
-        pos = cycle - pos
-    return (' ' * pos) + 'o' + (' ' * (width - 1 - pos))
+    Each 0.5s one more dash turns green. When all dashes are green, reset to all white.
+    Uses ANSI escape codes so it works in any terminal (including PyCharm).
+    """
+    filled = step % (width + 1)
+    if filled > width:
+        filled = width
+    green = '\033[32m━\033[0m' * filled
+    white = '━' * (width - filled)
+    return green + white
 
 
 def _substatus_style(substatus) -> str:
@@ -74,7 +76,7 @@ def _substatus_style(substatus) -> str:
 
 
 def _make_poll_panel(entry: dict, aanlevering_id: str, title: str,
-                     elapsed: int, frame: str, interval: int) -> Panel:
+                     elapsed: int, progress: str, interval: int) -> Panel:
     status = entry.get('status', '—')
     substatus = entry.get('substatus')
     nummer = entry.get('nummer', aanlevering_id)
@@ -91,7 +93,7 @@ def _make_poll_panel(entry: dict, aanlevering_id: str, title: str,
     tbl.add_row('Substatus', Text(substatus_str, style=_substatus_style(substatus)))
     tbl.add_row('Verstreken', f'{elapsed}s')
 
-    subtitle = Text(f'{frame} polling elke {interval}s', style='cyan')
+    subtitle = Text.from_ansi(f'{progress} polling elke {interval}s')
     return Panel(tbl, title=f'[bold]{title}[/bold]', subtitle=subtitle)
 
 
@@ -331,7 +333,7 @@ class DavieClient:
                     f'\n[bold yellow]⚠  Aanlevering [cyan]{aanlevering.nummer or aanlevering.id}[/cyan] '
                     f'heeft substatus [bold red]{substatus_str}[/bold red].[/bold yellow]\n'
                     f'   Verwijder het foutieve bestand via de DAVIE-interface of via:\n'
-                    f'   [dim]davie_client.delete_file(aanlevering_id={aanlevering.id!r}, bestand_id=<id>)[/dim]\n'
+                    f'   davie_client.delete_file(aanlevering_id={aanlevering.id!r}, bestand_id=<id>)\n'
                     f'   Upload daarna een gecorrigeerd bestand en roep [bold]finalize_and_wait()[/bold] aan.\n'
                 )
 
@@ -388,7 +390,7 @@ class DavieClient:
         """Poll the API every `interval` seconds with in-place animated status line.
 
         Returns the final shelve entry when a non-pending substatus is reached.
-        Uses a pingpong-ball in-place spinner.
+        Uses a uv-style progress bar that fills with green dashes every 0.5s.
         """
         start = time.monotonic()
         frame_idx = 0
@@ -409,7 +411,7 @@ class DavieClient:
         while True:
             now = time.monotonic()
             elapsed = int(now - start)
-            frame = _pingpong_frame(frame_idx)
+            progress = _progress_bar(frame_idx)
 
             if now - last_poll >= interval:
                 self.track_aanlevering_by_id(aanlevering_id)
@@ -422,7 +424,7 @@ class DavieClient:
             substatus_str = (substatus.value if hasattr(substatus, 'value')
                              else str(substatus) if substatus else '—')
 
-            status_line = (f'[{frame}] {elapsed}s | Status: {status_str} | Substatus: {substatus_str} | '
+            status_line = (f'{progress} {elapsed}s | Status: {status_str} | Substatus: {substatus_str} | '
                            f'{nummer} ({aanlevering_id})')
             try:
                 sys.stdout.write(f'\r{status_line:<120}')
@@ -443,7 +445,7 @@ class DavieClient:
             pass
 
         _CONSOLE.print(_make_poll_panel(entry, aanlevering_id, title, int(now - start),
-                                        _pingpong_frame(frame_idx), interval))
+                                        _progress_bar(frame_idx), interval))
 
         return entry
 
